@@ -31,4 +31,11 @@ public class Comentarios {
     // Inicializa o campo com a data e horário exatos em que a instância do comentário for criada.
     private LocalDateTime dataCriacao = LocalDateTime.now(); // Timestamp de criação do comentário.
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn
+    private Usuario autor;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn
+    private Post post;
 }
