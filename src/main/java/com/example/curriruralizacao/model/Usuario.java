@@ -39,6 +39,12 @@ public class Usuario {
     @NotNull(message = "O uso do email é obrigatório")
     private String email; // Endereço de e-mail do usuário, usado como identificador de login e contato.
 
+    // Mapeia a coluna da senha
+    @Column
+    //Bean Validadtion: Torna o campo de senha obrigatório
+    @NotNull(message = "senha não pode estar vazia")
+    private String senha;
+
     // Mapeia a coluna no banco para armazenar o bairro.
     @Column
     private String bairro; // Bairro de residência do usuário.
