@@ -10,6 +10,7 @@ import org.hibernate.validator.constraints.Length;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 // Marca esta classe como uma entidade gerenciada pelo JPA e mapeada para a tabela 'Usuario' no banco de dados.
 @Entity
@@ -71,10 +72,25 @@ public class Usuario {
     private Roles role; // Perfil ou papel de permissões atribuído a este usuário (ADM, USR, GST).
 
     // Construtor sobrecarregado com argumentos para facilitar a instanciação de usuários com seus dados principais.
-    public Usuario(String nome, String email, LocalDateTime dataCadastro) {
+    public Usuario(String nome, String email, String senha, LocalDateTime dataCadastro, String role) {
         this.nome = nome; // Atribui o nome fornecido.
         this.email = email; // Atribui o e-mail fornecido.
         // Se a dataCadastro não for informada (for null), preenche automaticamente com a data e hora do momento atual.
         this.dataCadastro = dataCadastro != null ? dataCadastro : LocalDateTime.now();
+        this.senha = senha;
+        this.role = Roles.valueOf(role);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Usuario usuario = (Usuario) o;
+        return Objects.equals(id, usuario.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
     }
 }
