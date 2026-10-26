@@ -8,9 +8,8 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
+@Getter @Setter
 @Table(name = "tb_post")
-@Getter
-@Setter
 @NoArgsConstructor
 public class Post {
 
@@ -22,14 +21,14 @@ public class Post {
     @Column(name = "titulo")
     private String titulo;
 
-    @Column(name = "conteudo")
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String conteudo;
 
-    @Column(name = "data_criacao")
+    @Column(name = "data_criacao", nullable = false, updatable = false)
     private LocalDateTime dataCriacao;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "autor_id")
+    @JoinColumn(name = "autor_id", nullable = false)
     private Usuario autor;
 
 }
