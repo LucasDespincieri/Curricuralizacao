@@ -6,6 +6,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(
         name = "tb_capitulo",
@@ -36,6 +39,9 @@ public class Capitulo {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "livro_id", nullable = false)
     private Livro livro;
+
+    @OneToMany(mappedBy = "capitulo", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Grifo> grifos = new ArrayList<>();
 
     public Capitulo(Integer ordem, String titulo, String conteudo, Livro livro) {
         this.ordem = ordem;
