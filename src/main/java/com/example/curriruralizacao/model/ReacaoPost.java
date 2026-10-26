@@ -9,7 +9,13 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "tb_reacao_post")
+@Table(
+        name = "tb_reacao_post",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_post_usuario_reacao",
+                columnNames = {"post_id", "usuario_id"}
+        )
+)
 @Getter @Setter
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @NoArgsConstructor
@@ -33,5 +39,11 @@ public class ReacaoPost {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id")
     private Usuario usuario;
+
+    public ReacaoPost(String tipo, Post post, Usuario usuario) {
+        this.tipo = tipo;
+        this.post = post;
+        this.usuario = usuario;
+    }
 
 }
