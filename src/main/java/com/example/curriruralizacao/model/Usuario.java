@@ -10,6 +10,8 @@ import org.hibernate.validator.constraints.Length;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 // Marca esta classe como uma entidade gerenciada pelo JPA e mapeada para a tabela 'Usuario' no banco de dados.
@@ -72,6 +74,18 @@ public class Usuario {
     @Column
     @Enumerated(EnumType.STRING)
     private Roles role; // Perfil ou papel de permissões atribuído a este usuário (ADM, USR, GST).
+
+    @OneToMany(mappedBy = "autor", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Post> posts = new ArrayList<>();
+
+    @OneToMany(mappedBy = "autor", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Comentarios> comentarios = new ArrayList<>();
+
+    @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Grifo> grifos = new ArrayList<>();
+
+    @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<ReacaoPost> reacoes = new ArrayList<>();
 
     // Construtor sobrecarregado com argumentos para facilitar a instanciação de usuários com seus dados principais.
     public Usuario(String nome, String email, String senha, LocalDateTime dataCadastro, String role) {
