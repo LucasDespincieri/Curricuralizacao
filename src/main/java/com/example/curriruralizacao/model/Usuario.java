@@ -18,6 +18,8 @@ import java.util.Objects;
 @Getter @Setter
 // Lombok: Gera o construtor padrão vazio, indispensável para o Hibernate instanciar a entidade a partir do banco.
 @NoArgsConstructor
+@Table(name = "tb_usuario")
+
 public class Usuario {
 
     // Define 'id' como a chave primária (Primary Key) da entidade.
