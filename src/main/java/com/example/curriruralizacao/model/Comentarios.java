@@ -38,4 +38,11 @@ public class Comentarios {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn
     private Post post;
+
+    public Comentarios(String conteudo, Post post, Usuario autor) {
+        this.conteudo = conteudo;
+        this.post = post;
+        this.autor = autor;
+    }
+
 }
