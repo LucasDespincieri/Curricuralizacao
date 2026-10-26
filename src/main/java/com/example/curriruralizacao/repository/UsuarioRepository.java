@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 // @Repository: Anotação que indica ao Spring que esta interface pertence à camada de persistência (acesso a dados).
 // JpaRepository<Usuario, Integer>: Interface do Spring Data JPA que fornece métodos CRUD completos pré-implementados:
@@ -17,4 +18,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Integer> {
     // e constrói dinamicamente em tempo de execução a query SQL equivalente:
     // SELECT * FROM usuario WHERE nome = :nome
     List<Usuario> findByNome(String nome); // Retorna uma lista de usuários que possuem o nome informado.
+
+    Optional<Usuario> findByEmail(String email);
+
+    boolean existsByEmail(String email);
 }
