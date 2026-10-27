@@ -5,5 +5,9 @@ package com.example.curriruralizacao.model.ENUMS;
 public enum Roles {
     ADM, // Papel de Administrador: possui permissões totais no sistema.
     USR, // Papel de Usuário padrão: permissões regulares de operação.
-    GST  // Papel de Convidado / Gestor (Guest): permissões restritas ou de visualização.
+    GST;  // Papel de Convidado / Gestor (Guest): permissões restritas ou de visualização.
+
+    public String getAutoridade() {
+        return "ROLE_" + this.name();
+    }
 }
