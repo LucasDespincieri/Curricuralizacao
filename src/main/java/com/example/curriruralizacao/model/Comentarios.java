@@ -31,14 +31,19 @@ public class Comentarios {
     // Inicializa o campo com a data e horário exatos em que a instância do comentário for criada.
     private LocalDateTime dataCriacao = LocalDateTime.now(); // Timestamp de criação do comentário.
 
+    // Relacionamento Muitos-para-Um: muitos comentários podem ser escritos por um mesmo Usuário (autor).
     @ManyToOne(fetch = FetchType.LAZY)
+    // Especifica a coluna de chave estrangeira que armazena a referência ao usuário autor.
     @JoinColumn
-    private Usuario autor;
+    private Usuario autor; // Autor do comentário.
 
+    // Relacionamento Muitos-para-Um: muitos comentários pertencem a uma mesma publicação (Post).
     @ManyToOne(fetch = FetchType.LAZY)
+    // Especifica a coluna de chave estrangeira que armazena a referência ao post comentado.
     @JoinColumn
-    private Post post;
+    private Post post; // Post ao qual este comentário pertence.
 
+    // Construtor completo com argumentos para criar uma instância de comentário com seu conteúdo, post e autor.
     public Comentarios(String conteudo, Post post, Usuario autor) {
         this.conteudo = conteudo;
         this.post = post;

@@ -19,7 +19,13 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Integer> {
     // SELECT * FROM usuario WHERE nome = :nome
     List<Usuario> findByNome(String nome); // Retorna uma lista de usuários que possuem o nome informado.
 
-    Optional<Usuario> findByEmail(String email);
+    // Query Method derivado para busca por e-mail:
+    // SELECT * FROM usuario WHERE email = :email
+    // Retorna Optional<Usuario> para tratar com segurança cenários onde o e-mail não for encontrado (evitando NullPointerException).
+    Optional<Usuario> findByEmail(String email); // Usado principalmente no fluxo de login/autenticação.
 
-    boolean existsByEmail(String email);
+    // Query Method derivado para checagem rápida de existência:
+    // SELECT COUNT(*) > 0 FROM usuario WHERE email = :email
+    // Retorna boolean direto sem carregar todo o objeto na memória (ideal para validação de unicidade de e-mail no cadastro).
+    boolean existsByEmail(String email); // Verifica se já existe um usuário cadastrado com o e-mail informado.
 }

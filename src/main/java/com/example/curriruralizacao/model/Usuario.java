@@ -20,8 +20,8 @@ import java.util.Objects;
 @Getter @Setter
 // Lombok: Gera o construtor padrão vazio, indispensável para o Hibernate instanciar a entidade a partir do banco.
 @NoArgsConstructor
+// Especifica explicitamente o nome da tabela física no banco de dados como "tb_usuario".
 @Table(name = "tb_usuario")
-
 public class Usuario {
 
     // Define 'id' como a chave primária (Primary Key) da entidade.
@@ -44,11 +44,11 @@ public class Usuario {
     @NotNull(message = "O uso do email é obrigatório")
     private String email; // Endereço de e-mail do usuário, usado como identificador de login e contato.
 
-    // Mapeia a coluna da senha
+    // Mapeia a coluna no banco para armazenar o hash da senha de autenticação.
     @Column
-    //Bean Validadtion: Torna o campo de senha obrigatório
+    // Bean Validation: Torna o preenchimento da senha estritamente obrigatório.
     @NotNull(message = "senha não pode estar vazia")
-    private String senha;
+    private String senha; // Senha criptografada do usuário.
 
     // Mapeia a coluna no banco para armazenar o bairro.
     @Column
@@ -75,17 +75,22 @@ public class Usuario {
     @Enumerated(EnumType.STRING)
     private Roles role; // Perfil ou papel de permissões atribuído a este usuário (ADM, USR, GST).
 
+    // Relacionamento Um-para-Muitos: um usuário pode ser autor de várias publicações (Posts).
+    // - cascade = CascadeType.ALL e orphanRemoval = true: se o usuário for removido, seus posts são excluídos em cascata.
     @OneToMany(mappedBy = "autor", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<Post> posts = new ArrayList<>();
+    private List<Post> posts = new ArrayList<>(); // Lista de publicações criadas pelo usuário.
 
+    // Relacionamento Um-para-Muitos: um usuário pode publicar múltiplos comentários na plataforma.
     @OneToMany(mappedBy = "autor", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<Comentarios> comentarios = new ArrayList<>();
+    private List<Comentarios> comentarios = new ArrayList<>(); // Lista de comentários publicados pelo usuário.
 
+    // Relacionamento Um-para-Muitos: um usuário pode destacar múltiplos trechos em livros (grifos).
     @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<Grifo> grifos = new ArrayList<>();
+    private List<Grifo> grifos = new ArrayList<>(); // Lista de grifos e anotações pessoais do leitor.
 
+    // Relacionamento Um-para-Muitos: um usuário pode reagir a diversos posts.
     @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<ReacaoPost> reacoes = new ArrayList<>();
+    private List<ReacaoPost> reacoes = new ArrayList<>(); // Lista de reações enviadas por este usuário.
 
     // Construtor sobrecarregado com argumentos para facilitar a instanciação de usuários com seus dados principais.
     public Usuario(String nome, String email, String senha, LocalDateTime dataCadastro, String role) {
@@ -93,20 +98,22 @@ public class Usuario {
         this.email = email; // Atribui o e-mail fornecido.
         // Se a dataCadastro não for informada (for null), preenche automaticamente com a data e hora do momento atual.
         this.dataCadastro = dataCadastro != null ? dataCadastro : LocalDateTime.now();
-        this.senha = senha;
-        this.role = Roles.valueOf(role);
+        this.senha = senha; // Atribui a senha informada.
+        this.role = Roles.valueOf(role); // Converte a String recebida na constante correspondente do Enum Roles.
     }
 
+    // Sobrescrita de equals() para comparar se duas instâncias de Usuario representam o mesmo registro no banco.
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Usuario usuario = (Usuario) o;
-        return Objects.equals(id, usuario.id);
+        if (this == o) return true; // Se for exatamente a mesma referência em memória, são iguais.
+        if (o == null || getClass() != o.getClass()) return false; // Se for nulo ou classes diferentes, não são iguais.
+        Usuario usuario = (Usuario) o; // Faz o cast seguro para Usuario.
+        return Objects.equals(id, usuario.id); // Considera iguais se possuírem o mesmo ID primário.
     }
 
+    // Sobrescrita de hashCode() compatível com equals(), baseada no identificador primário.
     @Override
     public int hashCode() {
-        return Objects.hash(id);
+        return Objects.hash(id); // Gera o código hash a partir do id.
     }
 }
