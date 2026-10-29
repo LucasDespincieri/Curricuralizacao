@@ -1,5 +1,7 @@
 package com.example.curriruralizacao.service;
 
+import com.example.curriruralizacao.DTO.CadastroForm;
+import com.example.curriruralizacao.model.ENUMS.Roles;
 import com.example.curriruralizacao.model.Usuario;
 import com.example.curriruralizacao.repository.LivroRepository;
 import com.example.curriruralizacao.repository.UsuarioRepository;
@@ -8,6 +10,7 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,10 +40,29 @@ public class UsuarioService implements UserDetailsService {
 
     private final UsuarioRepository usuarioRepository;
     private final LivroRepository livroRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public UsuarioService(UsuarioRepository usuarioRepository,
-                          LivroRepository livroRepository) {
+                          LivroRepository livroRepository, PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
         this.livroRepository = livroRepository;
+        this.passwordEncoder = passwordEncoder;
+
     }
+
+    @Transactional
+    public Usuario cadastrarUsuario(CadastroForm form) {
+        if (usuarioRepository.existsByEmail(form.getEmail())) {
+            throw new IllegalArgumentException("O e-mail '" + form.getEmail() + "' já está em uso por outro membro.");
+        }
+
+        Usuario usuario = new Usuario();
+        usuario.setNome(form.getNome().trim());
+        usuario.setEmail(form.getEmail().trim().toLowerCase());
+        usuario.setSenha(passwordEncoder.encode(form.getSenha()));
+        usuario.setRole(Roles.USR);
+
+        return usuarioRepository.save(usuario);
+    }
+
 }

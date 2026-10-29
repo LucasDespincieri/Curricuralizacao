@@ -30,7 +30,7 @@ public class SecurityConfig {
                         // Catálogo público de livros e leitor aberto para leitura
                         .requestMatchers("/biblioteca", "/livros/*/ler").permitAll()
                         // Rotas exclusivas do Pastor (Administrador)
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/**").hasRole("ADM")
                         // Demais rotas exigem autenticação (postar, comentar, grifar, perfil)
                         .anyRequest().authenticated()
                 )
