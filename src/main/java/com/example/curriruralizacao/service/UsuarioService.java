@@ -2,6 +2,7 @@ package com.example.curriruralizacao.service;
 
 import com.example.curriruralizacao.DTO.CadastroForm;
 import com.example.curriruralizacao.model.ENUMS.Roles;
+import com.example.curriruralizacao.model.Livro;
 import com.example.curriruralizacao.model.Usuario;
 import com.example.curriruralizacao.repository.LivroRepository;
 import com.example.curriruralizacao.repository.UsuarioRepository;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
+import java.util.Set;
 
 // @Service: Marca a classe como um serviço gerenciado pelo container do Spring.
 // UserDetailsService: Interface central do Spring Security responsável por carregar os dados do usuário durante a autenticação.
@@ -65,4 +67,41 @@ public class UsuarioService implements UserDetailsService {
         return usuarioRepository.save(usuario);
     }
 
+    @Transactional(readOnly = true)
+    public Usuario buscarPorEmail(String email) {
+        return usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado com o e-mail: " + email));
+    }
+
+    @Transactional(readOnly = true)
+    public Usuario buscarPorId(Integer id) {
+        return usuarioRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado para o ID: " + id));
+    }
+
+    @Transactional
+    public void adicionarLivroABiblioteca(Long livroId, Integer usuarioId) {
+        Usuario usuario = buscarPorId(usuarioId);
+        Livro livro = livroRepository.findById(livroId)
+                .orElseThrow(() -> new IllegalArgumentException("Livro não encontrado para o ID: " + livroId));
+
+        usuario.getLivrosFavoritos().add(livro);
+        usuarioRepository.save(usuario);
+    }
+
+    @Transactional
+    public void removerLivroDaBiblioteca(Long livroId, Integer usuarioId) {
+        Usuario usuario = buscarPorId(usuarioId);
+        Livro livro = livroRepository.findById(livroId)
+                .orElseThrow(() -> new IllegalArgumentException("Livro não encontrado para o ID: " + livroId));
+
+        usuario.getLivrosFavoritos().remove(livro);
+        usuarioRepository.save(usuario);
+    }
+
+    @Transactional(readOnly = true)
+    public Set<Livro> listarLivrosFavoritos(Integer usuarioId) {
+        Usuario usuario = buscarPorId(usuarioId);
+        return usuario.getLivrosFavoritos();
+    }
 }

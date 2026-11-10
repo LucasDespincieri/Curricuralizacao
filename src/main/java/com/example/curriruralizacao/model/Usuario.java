@@ -10,9 +10,7 @@ import org.hibernate.validator.constraints.Length;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 // Marca esta classe como uma entidade gerenciada pelo JPA e mapeada para a tabela 'Usuario' no banco de dados.
 @Entity
@@ -91,6 +89,14 @@ public class Usuario {
     // Relacionamento Um-para-Muitos: um usuário pode reagir a diversos posts.
     @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<ReacaoPost> reacoes = new ArrayList<>(); // Lista de reações enviadas por este usuário.
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "tb_biblioteca_usuario",
+            joinColumns = @JoinColumn(name = "usuario_id"),
+            inverseJoinColumns = @JoinColumn(name = "livro_id")
+    )
+    private Set<Livro> livrosFavoritos = new HashSet<>();
 
     // Construtor sobrecarregado com argumentos para facilitar a instanciação de usuários com seus dados principais.
     public Usuario(String nome, String email, String senha, LocalDateTime dataCadastro, String role) {
