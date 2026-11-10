@@ -8,5 +8,5 @@ import org.springframework.stereotype.Repository;
 // JpaRepository<Comentarios, Long>: Gerencia a persistência de comentários (ID do tipo Long).
 // Fornece automaticamente operações de CRUD prontas: save(), findById(), deleteById(), etc.
 @Repository
-public interface ComentraioRepository extends JpaRepository<Comentarios, Long> {
+public interface ComentarioRepository extends JpaRepository<Comentarios, Long> {
 }
