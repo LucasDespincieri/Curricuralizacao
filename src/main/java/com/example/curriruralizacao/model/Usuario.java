@@ -90,13 +90,17 @@ public class Usuario {
     @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<ReacaoPost> reacoes = new ArrayList<>(); // Lista de reações enviadas por este usuário.
 
+    // Relacionamento Muitos-para-Muitos: um usuário pode favoritar vários livros, e um livro pode ser favoritado por vários usuários.
+    // @JoinTable: Cria e configura a tabela associativa intermediária "tb_biblioteca_usuario".
+    // - joinColumns: Coluna que referencia a chave estrangeira do usuário (usuario_id).
+    // - inverseJoinColumns: Coluna que referencia a chave estrangeira do livro (livro_id).
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "tb_biblioteca_usuario",
             joinColumns = @JoinColumn(name = "usuario_id"),
             inverseJoinColumns = @JoinColumn(name = "livro_id")
     )
-    private Set<Livro> livrosFavoritos = new HashSet<>();
+    private Set<Livro> livrosFavoritos = new HashSet<>(); // Conjunto de livros salvos na biblioteca/estante pessoal do leitor.
 
     // Construtor sobrecarregado com argumentos para facilitar a instanciação de usuários com seus dados principais.
     public Usuario(String nome, String email, String senha, LocalDateTime dataCadastro, String role) {

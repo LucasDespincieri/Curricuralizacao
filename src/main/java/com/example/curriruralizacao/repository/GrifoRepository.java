@@ -12,8 +12,11 @@ import java.util.List;
 @Repository
 public interface GrifoRepository extends JpaRepository<Grifo, Long> {
 
+    // Query Method derivado: busca todos os grifos de um usuário específico em um determinado capítulo.
+    // SQL gerado: SELECT * FROM tb_grifo WHERE capitulo_id = :capituloId AND usuario_id = :usuarioId
     List<Grifo> findAllByCapituloIdAndUsuarioId(Long capituloId, Integer usuarioId);
 
+    // Query Method derivado: lista todas as anotações e reflexões feitas pelo membro em qualquer livro, ordenadas da mais recente para a mais antiga.
+    // SQL gerado: SELECT * FROM tb_grifo WHERE usuario_id = :usuarioId ORDER BY data_criacao DESC
     List<Grifo> findAllByUsuarioIdOrderByDataCriacaoDesc(Integer usuarioId);
 }
-

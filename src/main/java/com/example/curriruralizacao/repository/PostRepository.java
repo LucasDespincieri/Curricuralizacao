@@ -11,5 +11,8 @@ import java.util.List;
 // Fornece métodos prontos para operações CRUD: save(), findById(), findAll(), deleteById(), etc.
 @Repository
 public interface PostRepository extends JpaRepository<Post, Long> {
+
+    // Query Method derivado: busca todas as postagens publicadas para exibição no feed ordenadas da mais recente para a mais antiga.
+    // SQL gerado: SELECT * FROM tb_post ORDER BY data_criacao DESC
     List<Post> findAllByOrderByDataCriacaoDesc();
 }

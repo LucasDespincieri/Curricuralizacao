@@ -11,5 +11,8 @@ import java.util.List;
 // - save(livro), findById(id), findAll(), deleteById(id), etc.
 @Repository
 public interface LivroRepository extends JpaRepository<Livro, Long> {
+
+    // Query Method derivado: retorna todas as obras cadastradas na biblioteca em ordem cronológica decrescente de publicação.
+    // SQL gerado: SELECT * FROM tb_livro ORDER BY data_publicacao DESC
     List<Livro> findAllByOrderByDataPublicacaoDesc();
 }
