@@ -12,8 +12,8 @@ import java.util.List;
 @Repository
 public interface GrifoRepository extends JpaRepository<Grifo, Long> {
 
-    List<Grifo> findAllByCapituloIdAndUsuarioId(Long capituloId, Long usuarioId);
+    List<Grifo> findAllByCapituloIdAndUsuarioId(Long capituloId, Integer usuarioId);
 
-    List<Grifo> findAllByUsuarioIdOrderByDataCriacaoDesc(Long usuarioId);
+    List<Grifo> findAllByUsuarioIdOrderByDataCriacaoDesc(Integer usuarioId);
 }
 

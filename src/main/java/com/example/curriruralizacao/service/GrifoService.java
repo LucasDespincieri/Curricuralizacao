@@ -44,7 +44,7 @@ public class GrifoService {
     }
 
     @Transactional(readOnly = true)
-    public List<Grifo> listarGrifosDoCapitulo(Long capituloId, Long usuarioId) {
+    public List<Grifo> listarGrifosDoCapitulo(Long capituloId, Integer usuarioId) {
         if (usuarioId == null) {
             return Collections.emptyList();
         }
