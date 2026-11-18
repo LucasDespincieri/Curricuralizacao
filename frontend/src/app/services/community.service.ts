@@ -157,7 +157,13 @@ export class CommunityService {
     },
   ]);
 
-  createPost(user: Usuario, conteudo: string, titulo?: string, tags: string[] = []): void {
+  createPost(
+    user: Usuario,
+    conteudo: string,
+    titulo?: string,
+    tags: string[] = [],
+    imagemUrl?: string | null,
+  ): void {
     const novo: Post = {
       idPost: Date.now(),
       idUsuario: user.idUsuario,
@@ -166,6 +172,7 @@ export class CommunityService {
       titulo: titulo?.trim() ? titulo.trim().slice(0, 20) : undefined,
       data: new Date().toISOString(),
       conteudo: conteudo.trim(),
+      imagemUrl: imagemUrl ?? null,
       tags,
       reacoes: { curtir: 0, amem: 0, userReacted: null },
       comentariosCount: 0,
@@ -176,7 +183,7 @@ export class CommunityService {
     this.http
       .post<Post>(
         '/api/posts',
-        { titulo: novo.titulo, conteudo: novo.conteudo },
+        { titulo: novo.titulo, conteudo: novo.conteudo, imagemUrl: novo.imagemUrl },
         { withCredentials: true },
       )
       .pipe(catchError(() => of(null)))

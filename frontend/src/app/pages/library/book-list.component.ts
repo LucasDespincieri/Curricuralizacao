@@ -8,6 +8,7 @@ import {
   LucideSearch,
 } from '@lucide/angular';
 import { AuthService } from '../../services/auth.service';
+import { LoginPromptService } from '../../services/login-prompt.service';
 import { BookService } from '../../services/book.service';
 
 @Component({
@@ -199,6 +200,7 @@ import { BookService } from '../../services/book.service';
 export class BookListComponent {
   protected readonly bookService = inject(BookService);
   private readonly auth = inject(AuthService);
+  private readonly loginPrompt = inject(LoginPromptService);
 
   readonly searchTerm = signal('');
   readonly filterMode = signal<'ALL' | 'PASTOR' | 'COMUNIDADE'>('ALL');
@@ -219,6 +221,7 @@ export class BookListComponent {
   });
 
   toggleSave(book: ReturnType<BookService['livros']>[number]): void {
+    if (!this.loginPrompt.exigirLogin('Entre na sua conta para guardar livros na sua estante.')) return;
     const userId = this.auth.currentUser()?.idUsuario ?? 1;
     this.bookService.toggleEstante(book, userId);
   }

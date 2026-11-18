@@ -62,6 +62,7 @@ public final class ApiMapper {
         dto.put("titulo", post.getTitulo());
         dto.put("data", post.getDataCriacao() != null ? post.getDataCriacao().toString() : "");
         dto.put("conteudo", post.getConteudo());
+        dto.put("imagemUrl", post.getImagemUrl());
         dto.put("reacoes", reacoes);
         dto.put("comentariosCount", post.getComentarios() != null ? post.getComentarios().size() : 0);
         return dto;

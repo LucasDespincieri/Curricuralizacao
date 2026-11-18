@@ -1,14 +1,24 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { LucideMenu, LucideX } from '@lucide/angular';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { RightWidgetsComponent } from '../../components/right-widgets/right-widgets.component';
+import { LoginPromptComponent } from '../../components/login-prompt/login-prompt.component';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [RouterOutlet, SidebarComponent, RightWidgetsComponent, LucideMenu, LucideX],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    SidebarComponent,
+    RightWidgetsComponent,
+    LoginPromptComponent,
+    LucideMenu,
+    LucideX,
+  ],
   template: `
     <div class="min-h-screen bg-[#FAFAFA] text-slate-900">
       <!-- Header Mobile -->
@@ -23,6 +33,15 @@ import { RightWidgetsComponent } from '../../components/right-widgets/right-widg
           </span>
           <span class="font-bold text-slate-900">Comunidade DA FÉ</span>
         </div>
+        <div class="flex items-center gap-2">
+        @if (!auth.currentUser()) {
+          <a
+            routerLink="/login"
+            class="rounded-full bg-slate-800 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-900"
+          >
+            Entrar
+          </a>
+        }
         <button
           type="button"
           (click)="mobileMenuOpen.set(!mobileMenuOpen())"
@@ -35,6 +54,7 @@ import { RightWidgetsComponent } from '../../components/right-widgets/right-widg
             <svg lucideMenu [size]="20"></svg>
           }
         </button>
+        </div>
       </header>
 
       <!-- Mobile Drawer -->
@@ -75,10 +95,14 @@ import { RightWidgetsComponent } from '../../components/right-widgets/right-widg
           </aside>
         }
       </div>
+
+      <!-- Pop-up "Entre para continuar" (aberto pelo LoginPromptService) -->
+      <app-login-prompt />
     </div>
   `,
 })
 export class MainLayoutComponent {
+  protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   readonly mobileMenuOpen = signal(false);
   private readonly currentUrl = signal(this.router.url);

@@ -11,29 +11,17 @@ export interface AuthResult {
 
 const USER_KEY = 'base_user_v1';
 
-const DEFAULT_USER: Usuario = {
-  idUsuario: 1,
-  nome: 'Ana Martins',
-  username: 'anamartins',
-  email: 'ana.martins@comunidade.org',
-  nascimento: '1994-05-14',
-  dia_cadastro: '2023-03-10',
-  role: 'MEMBRO',
-  localizacao: {
-    idCidade: 1,
-    cidade: 'São Paulo',
-    uf: 'SP',
-    pais: 'Brasil',
-    bairro: 'Vila Mariana',
-  },
-};
+// O backend gratuito "dorme" quando fica sem uso e leva cerca de um minuto para acordar.
+const SERVIDOR_INDISPONIVEL =
+  'O servidor está iniciando. Aguarde alguns segundos e tente de novo.';
+
 
 function loadUser(): Usuario | null {
   try {
     const raw = localStorage.getItem(USER_KEY);
-    return raw !== null ? (JSON.parse(raw) as Usuario | null) : DEFAULT_USER;
+    return raw !== null ? (JSON.parse(raw) as Usuario | null) : null;
   } catch {
-    return DEFAULT_USER;
+    return null;
   }
 }
 
@@ -87,23 +75,7 @@ export class AuthService {
         }),
         catchError((err: HttpErrorResponse) => {
           if (this.isBackendOffline(err)) {
-            this.currentUser.set({
-              idUsuario: 1,
-              nome: cleanEmail.includes('lucas') ? 'Pr. Lucas Mendes' : 'Ana Martins',
-              username: cleanEmail.includes('lucas') ? 'prlucasmendes' : 'anamartins',
-              email: cleanEmail,
-              nascimento: '1994-05-14',
-              dia_cadastro: '2023-03-10',
-              role: cleanEmail.includes('lucas') ? 'PASTOR' : 'MEMBRO',
-              localizacao: {
-                idCidade: 1,
-                cidade: 'São Paulo',
-                uf: 'SP',
-                pais: 'Brasil',
-                bairro: 'Vila Mariana',
-              },
-            });
-            return of({ ok: true, offline: true });
+            return of({ ok: false, offline: true, error: SERVIDOR_INDISPONIVEL });
           }
           return of({
             ok: false,
@@ -122,19 +94,13 @@ export class AuthService {
     cidade: string;
     uf: string;
   }): Observable<AuthResult> {
-    const username = dados.nome
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]/g, '');
-
     return this.http
       .post<Usuario>(
         '/api/auth/register',
         {
           nome: dados.nome,
           email: dados.email,
-          senha: dados.senha || '123456',
+          senha: dados.senha ?? '',
           nascimento: dados.nascimento,
           bairro: dados.bairro,
         },
@@ -147,23 +113,7 @@ export class AuthService {
         }),
         catchError((err: HttpErrorResponse) => {
           if (this.isBackendOffline(err)) {
-            this.currentUser.set({
-              idUsuario: Date.now(),
-              nome: dados.nome,
-              username: username || 'membro',
-              email: dados.email,
-              nascimento: dados.nascimento || '1995-01-01',
-              dia_cadastro: new Date().toISOString().split('T')[0],
-              role: 'MEMBRO',
-              localizacao: {
-                idCidade: 1,
-                cidade: dados.cidade || 'São Paulo',
-                uf: (dados.uf || 'SP').toUpperCase().slice(0, 2),
-                pais: 'Brasil',
-                bairro: dados.bairro || 'Centro',
-              },
-            });
-            return of({ ok: true, offline: true });
+            return of({ ok: false, offline: true, error: SERVIDOR_INDISPONIVEL });
           }
           return of({
             ok: false,

@@ -4,12 +4,14 @@ import {
   LucideBookmark,
   LucideBookOpen,
   LucideHome,
+  LucideLogIn,
   LucideLogOut,
   LucidePenLine,
   LucideSparkles,
   LucideUser,
 } from '@lucide/angular';
 import { AuthService } from '../../services/auth.service';
+import { LoginPromptService } from '../../services/login-prompt.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -22,6 +24,7 @@ import { AuthService } from '../../services/auth.service';
     LucideBookmark,
     LucideUser,
     LucidePenLine,
+    LucideLogIn,
     LucideLogOut,
     LucideSparkles,
   ],
@@ -122,6 +125,28 @@ import { AuthService } from '../../services/auth.service';
             <svg lucideLogOut [size]="16"></svg>
           </button>
         </div>
+      } @else {
+        <!-- Visitante sem login: convite para entrar -->
+        <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+          <p class="text-sm font-semibold text-slate-900">Faça parte da comunidade</p>
+          <p class="mt-0.5 text-xs leading-relaxed text-slate-500">
+            Entre para publicar, comentar e salvar livros na sua estante.
+          </p>
+          <a
+            routerLink="/login"
+            class="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-900"
+          >
+            <svg lucideLogIn [size]="15"></svg>
+            <span>Entrar</span>
+          </a>
+          <a
+            routerLink="/login"
+            [queryParams]="{ modo: 'cadastro' }"
+            class="mt-2 flex w-full items-center justify-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-white"
+          >
+            Criar conta
+          </a>
+        </div>
       }
     </aside>
   `,
@@ -129,6 +154,7 @@ import { AuthService } from '../../services/auth.service';
 export class SidebarComponent {
   protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly loginPrompt = inject(LoginPromptService);
   readonly newPostClicked = output<void>();
 
   getInitials(nome: string): string {
@@ -142,6 +168,7 @@ export class SidebarComponent {
 
   onNovoPost(): void {
     this.newPostClicked.emit();
+    if (!this.loginPrompt.exigirLogin('Entre na sua conta para publicar no feed da comunidade.')) return;
     this.router.navigate(['/inicio'], { queryParams: { novo: '1' } });
   }
 

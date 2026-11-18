@@ -5,6 +5,7 @@ import com.example.curriruralizacao.DTO.NovoPostForm;
 import com.example.curriruralizacao.model.Comentarios;
 import com.example.curriruralizacao.model.Post;
 import com.example.curriruralizacao.model.Usuario;
+import com.example.curriruralizacao.service.CloudinaryService;
 import com.example.curriruralizacao.service.PostService;
 import com.example.curriruralizacao.service.UsuarioService;
 import org.springframework.http.HttpStatus;
@@ -22,10 +23,13 @@ public class ApiFeedController {
 
     private final PostService postService;
     private final UsuarioService usuarioService;
+    private final CloudinaryService cloudinaryService;
 
-    public ApiFeedController(PostService postService, UsuarioService usuarioService) {
+    public ApiFeedController(PostService postService, UsuarioService usuarioService,
+                             CloudinaryService cloudinaryService) {
         this.postService = postService;
         this.usuarioService = usuarioService;
+        this.cloudinaryService = cloudinaryService;
     }
 
     @GetMapping
@@ -48,10 +52,20 @@ public class ApiFeedController {
             return ResponseEntity.badRequest().body(Map.of("error", "Conteúdo é obrigatório"));
         }
 
+        // Imagem opcional: precisa ser uma URL do nosso Cloudinary (gerada pelo fluxo de /api/uploads/assinatura).
+        String imagemUrl = body.getOrDefault("imagemUrl", "");
+        imagemUrl = imagemUrl == null ? "" : imagemUrl.trim();
+        if (!imagemUrl.isEmpty() && !cloudinaryService.urlValida(imagemUrl)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Imagem inválida"));
+        }
+
         Usuario user = usuarioService.buscarPorEmail(principal.getName());
         NovoPostForm form = new NovoPostForm();
         form.setConteudo(conteudo);
         Post post = postService.criarPost(form, user);
+        if (!imagemUrl.isEmpty()) {
+            post.setImagemUrl(imagemUrl);
+        }
         if (body.get("titulo") != null && !body.get("titulo").isBlank()) {
             String titulo = body.get("titulo").trim();
             post.setTitulo(titulo.length() > 20 ? titulo.substring(0, 20) : titulo);

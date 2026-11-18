@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { exigeLoginGuard } from './guards/auth.guard';
 import { MainLayoutComponent } from './layout/main-layout/main-layout.component';
 import { AuthPageComponent } from './pages/auth/auth-page.component';
 import { BookEditorComponent } from './pages/editor/book-editor.component';
@@ -17,11 +18,11 @@ export const routes: Routes = [
       { path: '', redirectTo: 'inicio', pathMatch: 'full' },
       { path: 'inicio', component: FeedPageComponent },
       { path: 'biblioteca', component: BookListComponent },
-      { path: 'biblioteca/novo', component: BookEditorComponent },
-      { path: 'biblioteca/editar/:id', component: BookEditorComponent },
+      { path: 'biblioteca/novo', component: BookEditorComponent, canActivate: [exigeLoginGuard] },
+      { path: 'biblioteca/editar/:id', component: BookEditorComponent, canActivate: [exigeLoginGuard] },
       { path: 'biblioteca/ler/:id', component: BookReaderComponent },
-      { path: 'estante', component: ShelfComponent },
-      { path: 'perfil', component: ProfileComponent },
+      { path: 'estante', component: ShelfComponent, canActivate: [exigeLoginGuard] },
+      { path: 'perfil', component: ProfileComponent, canActivate: [exigeLoginGuard] },
       { path: '**', redirectTo: 'inicio' },
     ],
   },

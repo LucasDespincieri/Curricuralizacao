@@ -1,15 +1,17 @@
-import { Component, ElementRef, inject, output, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, inject, OnDestroy, output, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { LucideSend } from '@lucide/angular';
+import { LucideImagePlus, LucideLoaderCircle, LucideSend, LucideX } from '@lucide/angular';
 import { AuthService } from '../../services/auth.service';
 import { CommunityService } from '../../services/community.service';
+import { LoginPromptService } from '../../services/login-prompt.service';
+import { TIPOS_IMAGEM_ACEITOS, UploadService } from '../../services/upload.service';
 
 const QUICK_TAGS = ['#Oração', '#Aviso', '#Estudo', '#PalavraDoPastor'];
 
 @Component({
   selector: 'app-post-composer',
   standalone: true,
-  imports: [FormsModule, LucideSend],
+  imports: [FormsModule, LucideSend, LucideImagePlus, LucideLoaderCircle, LucideX],
   template: `
     @if (auth.currentUser(); as user) {
       <section class="border-b border-slate-200 px-6 py-5">
@@ -38,8 +40,48 @@ const QUICK_TAGS = ['#Oração', '#Aviso', '#Estudo', '#PalavraDoPastor'];
               class="w-full resize-none border-0 bg-transparent p-0 text-sm leading-relaxed text-slate-900 placeholder:text-slate-400 focus:outline-none"
             ></textarea>
 
+            @if (previewUrl(); as preview) {
+              <div class="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                <img [src]="preview" alt="Pré-visualização da imagem" class="max-h-72 w-full object-cover" />
+                @if (enviandoImagem()) {
+                  <div class="absolute inset-0 flex items-center justify-center gap-2 bg-white/70 text-xs font-medium text-slate-700">
+                    <svg lucideLoaderCircle [size]="16" class="animate-spin"></svg>
+                    <span>Enviando imagem...</span>
+                  </div>
+                }
+                <button
+                  type="button"
+                  (click)="removerImagem()"
+                  aria-label="Remover imagem"
+                  class="absolute right-2 top-2 rounded-full bg-slate-900/70 p-1 text-white transition hover:bg-slate-900"
+                >
+                  <svg lucideX [size]="14"></svg>
+                </button>
+              </div>
+            }
+            @if (erroImagem()) {
+              <p class="text-xs font-medium text-rose-600">{{ erroImagem() }}</p>
+            }
+
             <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
-              <div class="flex flex-wrap gap-1.5">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <input
+                  #arquivoEl
+                  type="file"
+                  class="hidden"
+                  [accept]="tiposAceitos"
+                  (change)="aoSelecionarArquivo($event)"
+                />
+                <button
+                  type="button"
+                  (click)="arquivoEl.click()"
+                  [disabled]="enviandoImagem()"
+                  aria-label="Adicionar imagem"
+                  title="Adicionar imagem"
+                  class="rounded-full border border-slate-200 bg-slate-50 p-1.5 text-slate-600 transition hover:border-slate-400 hover:text-slate-900 disabled:opacity-40"
+                >
+                  <svg lucideImagePlus [size]="14"></svg>
+                </button>
                 @for (tag of quickTags; track tag) {
                   <button
                     type="button"
@@ -60,7 +102,7 @@ const QUICK_TAGS = ['#Oração', '#Aviso', '#Estudo', '#PalavraDoPastor'];
               <button
                 type="button"
                 (click)="submit()"
-                [disabled]="!conteudo().trim()"
+                [disabled]="!conteudo().trim() || enviandoImagem()"
                 class="inline-flex items-center gap-1.5 rounded-full bg-slate-800 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <svg lucideSend [size]="14"></svg>
@@ -70,17 +112,37 @@ const QUICK_TAGS = ['#Oração', '#Aviso', '#Estudo', '#PalavraDoPastor'];
           </div>
         </div>
       </section>
+    } @else {
+      <section class="border-b border-slate-200 px-6 py-5">
+        <button
+          type="button"
+          (click)="loginPrompt.exigirLogin('Entre na sua conta para compartilhar reflexões e pedidos de oração.')"
+          class="w-full rounded-xl border border-dashed border-slate-300 bg-slate-50/60 px-4 py-3 text-left text-sm text-slate-500 transition hover:border-slate-400 hover:text-slate-700"
+        >
+          Entre na sua conta para compartilhar uma reflexão ou pedido de oração...
+        </button>
+      </section>
     }
   `,
 })
-export class PostComposerComponent {
+export class PostComposerComponent implements OnDestroy {
   protected readonly auth = inject(AuthService);
   private readonly community = inject(CommunityService);
+  private readonly upload = inject(UploadService);
+  protected readonly loginPrompt = inject(LoginPromptService);
 
   readonly quickTags = QUICK_TAGS;
   readonly titulo = signal('');
   readonly conteudo = signal('');
   readonly selectedTags = signal<string[]>([]);
+
+  // Estado da imagem anexada
+  readonly tiposAceitos = TIPOS_IMAGEM_ACEITOS.join(',');
+  readonly previewUrl = signal<string | null>(null);
+  readonly imagemUrl = signal<string | null>(null);
+  readonly enviandoImagem = signal(false);
+  readonly erroImagem = signal<string | null>(null);
+  private envioAtual = 0;
   readonly postCreated = output<void>();
 
   private readonly textareaEl = viewChild<ElementRef<HTMLTextAreaElement>>('textareaEl');
@@ -98,6 +160,59 @@ export class PostComposerComponent {
       .join('');
   }
 
+  async aoSelecionarArquivo(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const arquivo = input.files?.[0];
+    input.value = ''; // permite escolher o mesmo arquivo de novo depois de remover
+    if (!arquivo) return;
+
+    const erro = this.upload.validarImagem(arquivo);
+    if (erro) {
+      this.erroImagem.set(erro);
+      return;
+    }
+
+    this.limparPreview();
+    this.erroImagem.set(null);
+    this.imagemUrl.set(null);
+    this.previewUrl.set(URL.createObjectURL(arquivo));
+    this.enviandoImagem.set(true);
+
+    // Se o usuário trocar de imagem no meio do envio, ignora a resposta antiga.
+    const envio = ++this.envioAtual;
+    try {
+      const url = await this.upload.enviarImagemPost(arquivo);
+      if (envio === this.envioAtual) this.imagemUrl.set(url);
+    } catch (e) {
+      if (envio === this.envioAtual) {
+        this.limparPreview();
+        this.erroImagem.set(
+          e instanceof Error && e.message ? e.message : 'Não foi possível enviar a imagem.',
+        );
+      }
+    } finally {
+      if (envio === this.envioAtual) this.enviandoImagem.set(false);
+    }
+  }
+
+  removerImagem(): void {
+    this.envioAtual++;
+    this.limparPreview();
+    this.imagemUrl.set(null);
+    this.enviandoImagem.set(false);
+    this.erroImagem.set(null);
+  }
+
+  ngOnDestroy(): void {
+    this.limparPreview();
+  }
+
+  private limparPreview(): void {
+    const atual = this.previewUrl();
+    if (atual) URL.revokeObjectURL(atual);
+    this.previewUrl.set(null);
+  }
+
   toggleTag(tag: string): void {
     this.selectedTags.update((tags) =>
       tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag],
@@ -107,7 +222,7 @@ export class PostComposerComponent {
   submit(): void {
     const user = this.auth.currentUser();
     const text = this.conteudo().trim();
-    if (!user || !text) return;
+    if (!user || !text || this.enviandoImagem()) return;
 
     const tags = this.selectedTags();
     const finalContent =
@@ -115,10 +230,11 @@ export class PostComposerComponent {
         ? `${text}\n${tags.join(' ')}`
         : text;
 
-    this.community.createPost(user, finalContent, this.titulo(), tags);
+    this.community.createPost(user, finalContent, this.titulo(), tags, this.imagemUrl());
     this.titulo.set('');
     this.conteudo.set('');
     this.selectedTags.set([]);
+    this.removerImagem();
     this.postCreated.emit();
   }
 }

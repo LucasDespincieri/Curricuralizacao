@@ -46,6 +46,7 @@ export interface Post {
   titulo?: string; // VARCHAR(20)
   data: string;
   conteudo: string; // VARCHAR(5000)
+  imagemUrl?: string | null; // URL da imagem no Cloudinary (opcional)
   tags?: string[];
   reacoes: {
     curtir: number;

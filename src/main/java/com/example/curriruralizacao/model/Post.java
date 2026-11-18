@@ -39,6 +39,10 @@ public class Post {
     private String conteudo; // Corpo textual completo da postagem.
 
     // Registra o instante de criação: não pode ser nulo e não deve ser modificado após o insert (updatable = false).
+    // URL pública da imagem anexada ao post (hospedada no Cloudinary). Opcional.
+    @Column(name = "imagem_url", length = 500)
+    private String imagemUrl;
+
     @Column(name = "data_criacao", nullable = false, updatable = false)
     private LocalDateTime dataCriacao; // Data e hora em que a publicação foi realizada.
 
@@ -77,4 +81,4 @@ public class Post {
         }
     }
 
-}
+}

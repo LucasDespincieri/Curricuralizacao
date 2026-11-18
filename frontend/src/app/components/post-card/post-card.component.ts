@@ -11,6 +11,8 @@ import {
 import { Post } from '../../models/community.models';
 import { AuthService } from '../../services/auth.service';
 import { CommunityService } from '../../services/community.service';
+import { LoginPromptService } from '../../services/login-prompt.service';
+import { urlImagemOtimizada } from '../../services/upload.service';
 
 @Component({
   selector: 'app-post-card',
@@ -66,12 +68,23 @@ import { CommunityService } from '../../services/community.service';
             </p>
           </div>
 
+          @if (imagem(); as src) {
+            <a [href]="post().imagemUrl" target="_blank" rel="noopener" class="mt-3 block">
+              <img
+                [src]="src"
+                alt="Imagem do post"
+                loading="lazy"
+                class="max-h-96 w-full rounded-xl border border-slate-200 object-cover"
+              />
+            </a>
+          }
+
           <!-- Footer de Ações -->
           <div class="mt-3.5 flex items-center justify-between text-slate-500">
             <div class="flex items-center gap-5">
               <button
                 type="button"
-                (click)="community.toggleReaction(post().idPost, 'CURTIR')"
+                (click)="reagir('CURTIR')"
                 class="inline-flex items-center gap-1.5 text-xs font-medium transition hover:text-rose-600"
                 [class.text-rose-600]="post().reacoes.userReacted === 'CURTIR'"
               >
@@ -81,7 +94,7 @@ import { CommunityService } from '../../services/community.service';
 
               <button
                 type="button"
-                (click)="community.toggleReaction(post().idPost, 'AMEM')"
+                (click)="reagir('AMEM')"
                 class="inline-flex items-center gap-1.5 text-xs font-medium transition hover:text-slate-900"
                 [class.font-semibold]="post().reacoes.userReacted === 'AMEM'"
                 [class.text-slate-900]="post().reacoes.userReacted === 'AMEM'"
@@ -104,7 +117,7 @@ import { CommunityService } from '../../services/community.service';
             <div class="flex items-center gap-1">
               <button
                 type="button"
-                (click)="community.toggleSavePost(post().idPost)"
+                (click)="salvar()"
                 aria-label="Salvar post"
                 class="rounded-lg p-1.5 transition hover:bg-slate-100"
                 [class.text-slate-900]="post().saved"
@@ -186,6 +199,14 @@ import { CommunityService } from '../../services/community.service';
                     <span>Enviar</span>
                   </button>
                 </div>
+              } @else {
+                <button
+                  type="button"
+                  (click)="loginPrompt.exigirLogin('Entre na sua conta para responder a este post.')"
+                  class="text-xs font-medium text-slate-500 underline-offset-2 transition hover:text-slate-900 hover:underline"
+                >
+                  Entre para comentar
+                </button>
               }
             </div>
           }
@@ -195,7 +216,9 @@ import { CommunityService } from '../../services/community.service';
   `,
 })
 export class PostCardComponent {
+  protected readonly loginPrompt = inject(LoginPromptService);
   readonly post = input.required<Post>();
+  readonly imagem = computed(() => urlImagemOtimizada(this.post().imagemUrl));
   protected readonly community = inject(CommunityService);
   protected readonly auth = inject(AuthService);
 
@@ -219,6 +242,16 @@ export class PostCardComponent {
       isTag: part.startsWith('#') && part.length > 1,
     }));
   });
+
+  reagir(tipo: 'CURTIR' | 'AMEM'): void {
+    if (!this.loginPrompt.exigirLogin('Entre na sua conta para reagir aos posts.')) return;
+    this.community.toggleReaction(this.post().idPost, tipo);
+  }
+
+  salvar(): void {
+    if (!this.loginPrompt.exigirLogin('Entre na sua conta para salvar posts.')) return;
+    this.community.toggleSavePost(this.post().idPost);
+  }
 
   toggleComments(): void {
     this.showComments.update((v) => !v);

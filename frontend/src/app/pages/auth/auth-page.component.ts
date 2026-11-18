@@ -1,13 +1,13 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
-import { LucideArrowRight, LucideBookOpen } from '@lucide/angular';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { LucideArrowLeft, LucideArrowRight, LucideBookOpen } from '@lucide/angular';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-auth-page',
   standalone: true,
-  imports: [FormsModule, LucideBookOpen, LucideArrowRight],
+  imports: [FormsModule, RouterLink, LucideBookOpen, LucideArrowRight, LucideArrowLeft],
   template: `
     <div class="grid min-h-screen lg:grid-cols-2">
       <!-- Lado Esquerdo: Boas-vindas -->
@@ -43,6 +43,13 @@ import { AuthService } from '../../services/auth.service';
       <!-- Lado Direito: Formulário -->
       <section class="flex items-center justify-center bg-[#FAF9F6] px-6 py-12">
         <div class="w-full max-w-md">
+          <a
+            routerLink="/inicio"
+            class="mb-6 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 transition hover:text-slate-900"
+          >
+            <svg lucideArrowLeft [size]="14"></svg>
+            <span>Voltar para o início</span>
+          </a>
           <p class="text-[11px] font-semibold tracking-widest text-slate-400 uppercase">
             {{ mode() === 'LOGIN' ? 'Bem-vindo de volta' : 'Faça parte' }}
           </p>
@@ -228,12 +235,16 @@ import { AuthService } from '../../services/auth.service';
 export class AuthPageComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
-  readonly mode = signal<'LOGIN' | 'REGISTER'>('LOGIN');
+  // /login?modo=cadastro abre direto na aba de cadastro
+  readonly mode = signal<'LOGIN' | 'REGISTER'>(
+    this.route.snapshot.queryParamMap.get('modo') === 'cadastro' ? 'REGISTER' : 'LOGIN',
+  );
   readonly errorMessage = signal<string | null>(null);
   readonly submitting = signal(false);
 
-  loginEmail = 'ana.martins@comunidade.org';
+  loginEmail = '';
   loginSenha = '';
 
   regNome = '';
@@ -243,6 +254,18 @@ export class AuthPageComponent {
   regBairro = '';
   regCidade = '';
   regUf = '';
+
+  /**
+   * Para onde ir depois de entrar: a página que a pessoa tentava abrir (/login?redirect=/estante)
+   * ou o início. Só aceita caminhos internos, para não virar um redirecionamento para outro site.
+   */
+  private destinoAposLogin(): string {
+    const redirect = this.route.snapshot.queryParamMap.get('redirect');
+    if (redirect && redirect.startsWith('/') && !redirect.startsWith('//') && !redirect.startsWith('/login')) {
+      return redirect;
+    }
+    return '/inicio';
+  }
 
   switchMode(next: 'LOGIN' | 'REGISTER'): void {
     this.mode.set(next);
@@ -257,7 +280,7 @@ export class AuthPageComponent {
     this.auth.login(this.loginEmail, this.loginSenha).subscribe((res) => {
       this.submitting.set(false);
       if (res.ok) {
-        this.router.navigate(['/inicio']);
+        this.router.navigateByUrl(this.destinoAposLogin());
       } else {
         this.errorMessage.set(res.error ?? 'Não foi possível entrar.');
       }
@@ -287,7 +310,7 @@ export class AuthPageComponent {
       .subscribe((res) => {
         this.submitting.set(false);
         if (res.ok) {
-          this.router.navigate(['/inicio']);
+          this.router.navigateByUrl(this.destinoAposLogin());
         } else {
           this.errorMessage.set(res.error ?? 'Não foi possível criar a conta.');
         }

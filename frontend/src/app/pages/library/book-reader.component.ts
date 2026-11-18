@@ -10,6 +10,7 @@ import {
   LucideTrash2,
 } from '@lucide/angular';
 import { AuthService } from '../../services/auth.service';
+import { LoginPromptService } from '../../services/login-prompt.service';
 import { BookService } from '../../services/book.service';
 
 @Component({
@@ -247,6 +248,7 @@ export class BookReaderComponent {
   private readonly route = inject(ActivatedRoute);
   protected readonly bookService = inject(BookService);
   private readonly auth = inject(AuthService);
+  private readonly loginPrompt = inject(LoginPromptService);
 
   readonly currentIndex = signal(0);
   readonly fontSize = signal(18);
@@ -285,6 +287,7 @@ export class BookReaderComponent {
   });
 
   saveGrifo(): void {
+    if (!this.loginPrompt.exigirLogin('Entre na sua conta para salvar grifos e anotações.')) return;
     const b = this.book();
     const trecho = this.grifoTrecho().trim();
     if (!b || !trecho) return;
@@ -311,6 +314,7 @@ export class BookReaderComponent {
   }
 
   toggleSave(): void {
+    if (!this.loginPrompt.exigirLogin('Entre na sua conta para guardar livros na sua estante.')) return;
     const b = this.book();
     if (!b) return;
     const userId = this.auth.currentUser()?.idUsuario ?? 1;
