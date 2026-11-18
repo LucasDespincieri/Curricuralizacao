@@ -1,13 +1,22 @@
 package com.example.curriruralizacao.Config;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 // @Configuration: Marca a classe como uma fonte de definições de beans gerenciados pelo contexto do Spring.
 @Configuration
@@ -24,22 +33,50 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(List.of("http://localhost:4200", "http://127.0.0.1:4200"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(true);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**", config);
+        return source;
+    }
+
     // Configura a cadeia de filtros de segurança (Security Filter Chain) da aplicação HTTP.
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
                 // Configuração das regras de autorização de requisições HTTP:
                 .authorizeHttpRequests(authorize -> authorize
                         // Recursos estáticos (estilos CSS, scripts JS, imagens e ícone) liberados para qualquer visitante.
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
                         // Telas públicas principais: página inicial, feed geral, tela de login e página de cadastro liberadas para todos.
                         .requestMatchers("/", "/feed", "/login", "/cadastro").permitAll()
+                        // Endpoints REST públicos para o frontend Angular
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/posts/**", "/api/livros/**").permitAll()
                         // Catálogo público de livros e rota de leitura de capítulos liberados para visitação pública.
                         .requestMatchers("/biblioteca", "/livros/*/ler").permitAll()
                         // Rotas administrativas iniciadas por /admin/ restritas exclusivamente a usuários com papel ADM (Pastor/Admin).
                         .requestMatchers("/admin/**").hasRole("ADM")
                         // Qualquer outra requisição não listada acima exige que o usuário esteja devidamente autenticado (sessão ativa).
                         .anyRequest().authenticated()
+                )
+                .exceptionHandling(ex -> ex
+                        .defaultAuthenticationEntryPointFor(
+                                (request, response, authException) -> response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Não autenticado"),
+                                request -> request.getRequestURI().startsWith("/api/")
+                        )
                 )
                 // Configuração da autenticação via formulário de login (Form Login):
                 .formLogin(form -> form
