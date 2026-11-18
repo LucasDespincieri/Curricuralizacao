@@ -1,13 +1,30 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { LucideArrowLeft, LucideBookmark, LucideChevronLeft, LucideChevronRight } from '@lucide/angular';
+import {
+  LucideArrowLeft,
+  LucideBookmark,
+  LucideChevronLeft,
+  LucideChevronRight,
+  LucideHighlighter,
+  LucideTrash2,
+} from '@lucide/angular';
 import { AuthService } from '../../services/auth.service';
 import { BookService } from '../../services/book.service';
 
 @Component({
   selector: 'app-book-reader',
   standalone: true,
-  imports: [RouterLink, LucideArrowLeft, LucideBookmark, LucideChevronLeft, LucideChevronRight],
+  imports: [
+    FormsModule,
+    RouterLink,
+    LucideArrowLeft,
+    LucideBookmark,
+    LucideChevronLeft,
+    LucideChevronRight,
+    LucideHighlighter,
+    LucideTrash2,
+  ],
   template: `
     @if (book(); as livro) {
       <div class="min-h-screen bg-[#FAF9F6]">
@@ -47,6 +64,21 @@ import { BookService } from '../../services/book.service';
                 A+
               </button>
             </div>
+
+            <button
+              type="button"
+              (click)="showGrifos.set(!showGrifos())"
+              class="inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition"
+              [class.border-amber-300]="showGrifos()"
+              [class.bg-amber-50]="showGrifos()"
+              [class.text-amber-900]="showGrifos()"
+              [class.border-slate-200]="!showGrifos()"
+              [class.bg-white]="!showGrifos()"
+              [class.text-slate-700]="!showGrifos()"
+            >
+              <svg lucideHighlighter [size]="14"></svg>
+              <span>Meus Grifos ({{ myGrifos().length }})</span>
+            </button>
 
             <button
               type="button"
@@ -132,6 +164,69 @@ import { BookService } from '../../services/book.service';
                 <svg lucideChevronRight [size]="15"></svg>
               </button>
             </div>
+
+            <!-- Painel de Grifos Privados do Leitor -->
+            @if (showGrifos()) {
+              <section class="mt-8 rounded-2xl border border-amber-200/80 bg-amber-50/40 p-5">
+                <div class="mb-3 flex items-center justify-between">
+                  <h3 class="text-xs font-bold tracking-wide text-slate-800 uppercase">
+                    Anotações &amp; Grifos Privados (só você vê)
+                  </h3>
+                </div>
+
+                <div class="space-y-2.5">
+                  <input
+                    type="text"
+                    [(ngModel)]="grifoTrecho"
+                    placeholder="Cole ou escreva o trecho que deseja destacar..."
+                    class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-900 focus:border-amber-400 focus:outline-none"
+                  />
+                  <div class="flex gap-2">
+                    <input
+                      type="text"
+                      [(ngModel)]="grifoAnotacao"
+                      placeholder="Nota pessoal (opcional)..."
+                      class="flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-900 focus:border-amber-400 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      (click)="saveGrifo()"
+                      [disabled]="!grifoTrecho().trim()"
+                      class="rounded-xl bg-slate-800 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-900 disabled:opacity-40"
+                    >
+                      Salvar Grifo
+                    </button>
+                  </div>
+                </div>
+
+                <div class="mt-4 space-y-2.5">
+                  @for (g of myGrifos(); track g.id) {
+                    <div class="flex items-start justify-between gap-3 rounded-xl border border-amber-200/70 bg-white p-3">
+                      <div class="min-w-0">
+                        <p class="border-l-2 border-amber-400 pl-2.5 text-xs italic text-slate-800">
+                          “{{ g.trecho }}”
+                        </p>
+                        @if (g.anotacao) {
+                          <p class="mt-1.5 text-xs text-slate-600">{{ g.anotacao }}</p>
+                        }
+                      </div>
+                      <button
+                        type="button"
+                        (click)="bookService.removeGrifo(g.id)"
+                        class="rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                        title="Remover grifo"
+                      >
+                        <svg lucideTrash2 [size]="14"></svg>
+                      </button>
+                    </div>
+                  } @empty {
+                    <p class="text-xs text-slate-500">
+                      Nenhum grifo salvo neste capítulo ainda.
+                    </p>
+                  }
+                </div>
+              </section>
+            }
           </article>
         </div>
       </div>
@@ -150,11 +245,14 @@ import { BookService } from '../../services/book.service';
 })
 export class BookReaderComponent {
   private readonly route = inject(ActivatedRoute);
-  private readonly bookService = inject(BookService);
+  protected readonly bookService = inject(BookService);
   private readonly auth = inject(AuthService);
 
   readonly currentIndex = signal(0);
   readonly fontSize = signal(18);
+  readonly showGrifos = signal(false);
+  readonly grifoTrecho = signal('');
+  readonly grifoAnotacao = signal('');
 
   readonly book = computed(() => {
     const id = Number(this.route.snapshot.paramMap.get('id'));
@@ -178,6 +276,23 @@ export class BookReaderComponent {
     const b = this.book();
     return b ? this.bookService.isSaved(b.idLivros) : false;
   });
+
+  readonly myGrifos = computed(() => {
+    const b = this.book();
+    const uid = this.auth.currentUser()?.idUsuario ?? 1;
+    if (!b) return [];
+    return this.bookService.getGrifos(b.idLivros, this.currentIndex() + 1, uid);
+  });
+
+  saveGrifo(): void {
+    const b = this.book();
+    const trecho = this.grifoTrecho().trim();
+    if (!b || !trecho) return;
+    const uid = this.auth.currentUser()?.idUsuario ?? 1;
+    this.bookService.addGrifo(b.idLivros, this.currentIndex() + 1, uid, trecho, this.grifoAnotacao());
+    this.grifoTrecho.set('');
+    this.grifoAnotacao.set('');
+  }
 
   increaseFont(): void {
     this.fontSize.update((s) => Math.min(24, s + 2));
