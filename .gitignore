@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Ignorar arquivos e contextos de Inteligência Artificial
+/IA/
+IA/
+**/IA/*
+
