@@ -1,9 +1,22 @@
-import { Injectable, signal } from '@angular/core';
-import { Capitulo, ItemBiblioteca, Livro, Usuario } from '../models/community.models';
+import { effect, Injectable, signal } from '@angular/core';
+import { Capitulo, Grifo, ItemBiblioteca, Livro, Usuario } from '../models/community.models';
+
+const BOOKS_KEY = 'base_books_v1';
+const SHELF_KEY = 'base_shelf_v1';
+const GRIFOS_KEY = 'base_grifos_v1';
+
+function loadStorage<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 @Injectable({ providedIn: 'root' })
 export class BookService {
-  readonly livros = signal<Livro[]>([
+  readonly livros = signal<Livro[]>(loadStorage<Livro[]>(BOOKS_KEY, [
     {
       idLivros: 1,
       idUsuario: 10,
@@ -122,22 +135,96 @@ export class BookService {
         },
       ],
     },
-  ]);
+  ]));
 
-  readonly estante = signal<ItemBiblioteca[]>([
-    {
-      idBiblioteca: 1,
-      idUsuario: 1,
-      idLivros: 1,
-      livro: this.livros()[0],
-    },
-    {
-      idBiblioteca: 2,
-      idUsuario: 1,
-      idLivros: 2,
-      livro: this.livros()[1],
-    },
-  ]);
+  readonly estante = signal<ItemBiblioteca[]>(
+    loadStorage<ItemBiblioteca[]>(SHELF_KEY, [
+      {
+        idBiblioteca: 1,
+        idUsuario: 1,
+        idLivros: 1,
+        livro: {
+          idLivros: 1,
+          idUsuario: 10,
+          autorNome: 'Pr. Lucas Mendes',
+          autorRole: 'PASTOR',
+          titulo: 'Caminhos de Graça',
+          descricao:
+            'Um estudo sobre a graça que transforma nossas escolhas, relacionamentos e a maneira de caminhar com Deus.',
+          tempoLeituraMin: 18,
+          corCapa: '#2A4065',
+          publicado: true,
+          secoes: 3,
+          data_inicio: '2024-06-12',
+        },
+      },
+      {
+        idBiblioteca: 2,
+        idUsuario: 1,
+        idLivros: 2,
+        livro: {
+          idLivros: 2,
+          idUsuario: 12,
+          autorNome: 'Mariana Lopes',
+          autorRole: 'MEMBRO',
+          titulo: 'Oração que sustenta',
+          descricao:
+            'Práticas simples para criar um espaço de silêncio, escuta e confiança no cotidiano.',
+          tempoLeituraMin: 8,
+          corCapa: '#9C7864',
+          publicado: true,
+          secoes: 2,
+          data_inicio: '2024-06-08',
+        },
+      },
+    ]),
+  );
+
+  readonly grifos = signal<Grifo[]>(loadStorage<Grifo[]>(GRIFOS_KEY, []));
+
+  constructor() {
+    effect(() => {
+      try {
+        localStorage.setItem(BOOKS_KEY, JSON.stringify(this.livros()));
+        localStorage.setItem(SHELF_KEY, JSON.stringify(this.estante()));
+        localStorage.setItem(GRIFOS_KEY, JSON.stringify(this.grifos()));
+      } catch {
+        // ignore storage quota errors
+      }
+    });
+  }
+
+  getGrifos(idLivro: number, ordemCapitulo: number, idUsuario: number): Grifo[] {
+    return this.grifos().filter(
+      (g) =>
+        g.idLivro === idLivro &&
+        g.ordemCapitulo === ordemCapitulo &&
+        g.idUsuario === idUsuario,
+    );
+  }
+
+  addGrifo(
+    idLivro: number,
+    ordemCapitulo: number,
+    idUsuario: number,
+    trecho: string,
+    anotacao?: string,
+  ): void {
+    const novo: Grifo = {
+      id: Date.now(),
+      idLivro,
+      ordemCapitulo,
+      idUsuario,
+      trecho: trecho.trim(),
+      anotacao: anotacao?.trim() || undefined,
+      criadoEm: new Date().toISOString(),
+    };
+    this.grifos.update((list) => [novo, ...list]);
+  }
+
+  removeGrifo(id: number): void {
+    this.grifos.update((list) => list.filter((g) => g.id !== id));
+  }
 
   getLivroById(id: number): Livro | undefined {
     return this.livros().find((l) => l.idLivros === id);

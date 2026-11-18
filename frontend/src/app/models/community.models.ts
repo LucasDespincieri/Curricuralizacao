@@ -94,3 +94,13 @@ export interface AvisoMural {
   data: string;
   autorNome: string;
 }
+
+export interface Grifo {
+  id: number;
+  idLivro: number;
+  ordemCapitulo: number;
+  idUsuario: number;
+  trecho: string;
+  anotacao?: string;
+  criadoEm: string;
+}

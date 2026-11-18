@@ -1,9 +1,21 @@
-import { Injectable, signal } from '@angular/core';
+import { effect, Injectable, signal } from '@angular/core';
 import { AvisoMural, Comentario, Post, ReacaoTipo, Usuario } from '../models/community.models';
+
+const POSTS_KEY = 'base_posts_v1';
+const COMMENTS_KEY = 'base_comments_v1';
+
+function loadFromStorage<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 @Injectable({ providedIn: 'root' })
 export class CommunityService {
-  readonly posts = signal<Post[]>([
+  readonly posts = signal<Post[]>(loadFromStorage<Post[]>(POSTS_KEY, [
     {
       idPost: 1,
       idUsuario: 10,
@@ -59,9 +71,9 @@ export class CommunityService {
       comentariosCount: 0,
       saved: false,
     },
-  ]);
+  ]));
 
-  readonly comentarios = signal<Comentario[]>([
+  readonly comentarios = signal<Comentario[]>(loadFromStorage<Comentario[]>(COMMENTS_KEY, [
     {
       idComentarios: 1,
       idUsuario: 1,
@@ -92,7 +104,18 @@ export class CommunityService {
       conteudo: 'Estamos em oração pela Dona Célia e por toda a família, Rafael!',
       reacoesCount: 8,
     },
-  ]);
+  ]));
+
+  constructor() {
+    effect(() => {
+      try {
+        localStorage.setItem(POSTS_KEY, JSON.stringify(this.posts()));
+        localStorage.setItem(COMMENTS_KEY, JSON.stringify(this.comentarios()));
+      } catch {
+        // ignore storage quota errors
+      }
+    });
+  }
 
   readonly avisos = signal<AvisoMural[]>([
     {
@@ -162,6 +185,11 @@ export class CommunityService {
     this.posts.update((list) =>
       list.map((p) => (p.idPost === postId ? { ...p, saved: !p.saved } : p)),
     );
+  }
+
+  deletePost(postId: number): void {
+    this.posts.update((list) => list.filter((p) => p.idPost !== postId));
+    this.comentarios.update((list) => list.filter((c) => c.idPost !== postId));
   }
 
   getCommentsForPost(postId: number): Comentario[] {

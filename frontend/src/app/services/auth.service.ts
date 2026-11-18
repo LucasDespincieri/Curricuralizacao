@@ -1,24 +1,47 @@
-import { Injectable, signal } from '@angular/core';
+import { effect, Injectable, signal } from '@angular/core';
 import { Usuario } from '../models/community.models';
+
+const USER_KEY = 'base_user_v1';
+
+const DEFAULT_USER: Usuario = {
+  idUsuario: 1,
+  nome: 'Ana Martins',
+  username: 'anamartins',
+  email: 'ana.martins@comunidade.org',
+  nascimento: '1994-05-14',
+  dia_cadastro: '2023-03-10',
+  role: 'MEMBRO',
+  localizacao: {
+    idCidade: 1,
+    cidade: 'São Paulo',
+    uf: 'SP',
+    pais: 'Brasil',
+    bairro: 'Vila Mariana',
+  },
+};
+
+function loadUser(): Usuario | null {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    return raw !== null ? (JSON.parse(raw) as Usuario | null) : DEFAULT_USER;
+  } catch {
+    return DEFAULT_USER;
+  }
+}
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  readonly currentUser = signal<Usuario | null>({
-    idUsuario: 1,
-    nome: 'Ana Martins',
-    username: 'anamartins',
-    email: 'ana.martins@comunidade.org',
-    nascimento: '1994-05-14',
-    dia_cadastro: '2023-03-10',
-    role: 'MEMBRO',
-    localizacao: {
-      idCidade: 1,
-      cidade: 'São Paulo',
-      uf: 'SP',
-      pais: 'Brasil',
-      bairro: 'Vila Mariana',
-    },
-  });
+  readonly currentUser = signal<Usuario | null>(loadUser());
+
+  constructor() {
+    effect(() => {
+      try {
+        localStorage.setItem(USER_KEY, JSON.stringify(this.currentUser()));
+      } catch {
+        // ignore storage quota errors
+      }
+    });
+  }
 
   login(email: string, _senha: string): boolean {
     if (!email.trim()) return false;
