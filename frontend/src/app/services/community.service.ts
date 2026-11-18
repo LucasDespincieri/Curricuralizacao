@@ -208,6 +208,15 @@ export class CommunityService {
         };
       }),
     );
+
+    this.http
+      .post<Post>(`/api/posts/${postId}/reagir`, { tipo }, { withCredentials: true })
+      .pipe(catchError(() => of(null)))
+      .subscribe((updated) => {
+        if (updated) {
+          this.posts.update((list) => list.map((p) => (p.idPost === postId ? updated : p)));
+        }
+      });
   }
 
   toggleSavePost(postId: number): void {
@@ -251,5 +260,20 @@ export class CommunityService {
         p.idPost === postId ? { ...p, comentariosCount: p.comentariosCount + 1 } : p,
       ),
     );
+
+    this.http
+      .post<Comentario>(
+        `/api/posts/${postId}/comentar`,
+        { conteudo: texto },
+        { withCredentials: true },
+      )
+      .pipe(catchError(() => of(null)))
+      .subscribe((saved) => {
+        if (saved) {
+          this.comentarios.update((list) =>
+            list.map((c) => (c.idComentarios === novoComentario.idComentarios ? saved : c)),
+          );
+        }
+      });
   }
 }
