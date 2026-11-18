@@ -6,6 +6,7 @@ import {
   LucideMessageCircle,
   LucideSend,
   LucideThumbsUp,
+  LucideTrash2,
 } from '@lucide/angular';
 import { Post } from '../../models/community.models';
 import { AuthService } from '../../services/auth.service';
@@ -21,6 +22,7 @@ import { CommunityService } from '../../services/community.service';
     LucideMessageCircle,
     LucideBookmark,
     LucideSend,
+    LucideTrash2,
   ],
   template: `
     <article class="border-b border-slate-200 px-6 py-5 transition hover:bg-slate-50/40">
@@ -99,16 +101,30 @@ import { CommunityService } from '../../services/community.service';
               </button>
             </div>
 
-            <button
-              type="button"
-              (click)="community.toggleSavePost(post().idPost)"
-              aria-label="Salvar post"
-              class="rounded-lg p-1.5 transition hover:bg-slate-100"
-              [class.text-slate-900]="post().saved"
-              [class.text-slate-400]="!post().saved"
-            >
-              <svg lucideBookmark [size]="16"></svg>
-            </button>
+            <div class="flex items-center gap-1">
+              <button
+                type="button"
+                (click)="community.toggleSavePost(post().idPost)"
+                aria-label="Salvar post"
+                class="rounded-lg p-1.5 transition hover:bg-slate-100"
+                [class.text-slate-900]="post().saved"
+                [class.text-slate-400]="!post().saved"
+              >
+                <svg lucideBookmark [size]="16"></svg>
+              </button>
+
+              @if (canDelete()) {
+                <button
+                  type="button"
+                  (click)="community.deletePost(post().idPost)"
+                  aria-label="Excluir post"
+                  title="Excluir publicação"
+                  class="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                >
+                  <svg lucideTrash2 [size]="15"></svg>
+                </button>
+              }
+            </div>
           </div>
 
           <!-- Thread de Comentários -->
@@ -189,6 +205,12 @@ export class PostCardComponent {
   protected readonly comments = computed(() =>
     this.community.getCommentsForPost(this.post().idPost),
   );
+
+  protected readonly canDelete = computed(() => {
+    const user = this.auth.currentUser();
+    if (!user) return false;
+    return user.role === 'PASTOR' || user.idUsuario === this.post().idUsuario;
+  });
 
   protected readonly formattedParts = computed(() => {
     const content = this.post().conteudo;
