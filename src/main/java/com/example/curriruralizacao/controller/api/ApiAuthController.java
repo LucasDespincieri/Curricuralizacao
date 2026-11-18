@@ -51,15 +51,7 @@ public class ApiAuthController {
         String senha = body.getOrDefault("senha", "");
 
         try {
-            Authentication auth = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(email, senha)
-            );
-            SecurityContext context = SecurityContextHolder.createEmptyContext();
-            context.setAuthentication(auth);
-            SecurityContextHolder.setContext(context);
-            HttpSession session = request.getSession(true);
-            session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
-
+            authenticateSession(email, senha, request);
             Usuario user = usuarioService.buscarPorEmail(email);
             return ResponseEntity.ok(ApiMapper.toUsuarioDto(user));
         } catch (Exception ex) {
@@ -69,11 +61,22 @@ public class ApiAuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody Map<String, String> body) {
-        CadastroForm form = new CadastroForm();
-        form.setNome(body.getOrDefault("nome", ""));
-        form.setEmail(body.getOrDefault("email", ""));
-        form.setSenha(body.getOrDefault("senha", "123456"));
+    public ResponseEntity<?> register(@RequestBody Map<String, String> body, HttpServletRequest request) {
+        String nome = body.getOrDefault("nome", "").trim();
+        String email = body.getOrDefault("email", "").trim().toLowerCase();
+        String senha = body.getOrDefault("senha", "");
+
+        if (nome.length() < 3) {
+            return ResponseEntity.badRequest().body(Map.of("error", "O nome deve ter pelo menos 3 caracteres."));
+        }
+        if (email.isBlank() || !email.contains("@")) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Informe um e-mail válido."));
+        }
+        if (senha.length() < 6) {
+            return ResponseEntity.badRequest().body(Map.of("error", "A senha deve ter no mínimo 6 caracteres."));
+        }
+
+        CadastroForm form = new CadastroForm(nome, email, senha);
 
         try {
             Usuario user = usuarioService.cadastrarUsuario(form);
@@ -84,10 +87,22 @@ public class ApiAuthController {
                 user.setDataNascimento(LocalDate.parse(body.get("nascimento")));
             }
             user = usuarioRepository.save(user);
+            authenticateSession(user.getEmail(), senha, request);
             return ResponseEntity.status(HttpStatus.CREATED).body(ApiMapper.toUsuarioDto(user));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         }
+    }
+
+    private void authenticateSession(String email, String senha, HttpServletRequest request) {
+        Authentication auth = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(email, senha)
+        );
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(auth);
+        SecurityContextHolder.setContext(context);
+        HttpSession session = request.getSession(true);
+        session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
     }
 
     @PutMapping("/profile")
