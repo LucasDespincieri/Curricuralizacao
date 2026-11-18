@@ -1,125 +1,72 @@
 import { HttpClient } from '@angular/common/http';
-import { effect, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { catchError, of } from 'rxjs';
 import { AvisoMural, Comentario, Post, ReacaoTipo, Usuario } from '../models/community.models';
+import { AuthService } from './auth.service';
 
-const POSTS_KEY = 'base_posts_v1';
-const COMMENTS_KEY = 'base_comments_v1';
+// Só os IDs dos posts salvos ficam no navegador (o backend ainda não guarda "salvos").
+const SAVED_KEY = 'base_saved_posts_v1';
 
-function loadFromStorage<T>(key: string, fallback: T): T {
+function loadSavedIds(): number[] {
   try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
+    const raw = localStorage.getItem(SAVED_KEY);
+    const ids = raw ? (JSON.parse(raw) as unknown) : [];
+    return Array.isArray(ids) ? ids.filter((id): id is number => typeof id === 'number') : [];
   } catch {
-    return fallback;
+    return [];
   }
+}
+
+// Limpa os dados de exemplo que versões antigas do site deixaram guardados no navegador.
+try {
+  localStorage.removeItem('base_posts_v1');
+  localStorage.removeItem('base_comments_v1');
+} catch {
+  // navegador sem localStorage: nada a limpar
 }
 
 @Injectable({ providedIn: 'root' })
 export class CommunityService {
   private readonly http = inject(HttpClient);
-  readonly posts = signal<Post[]>(loadFromStorage<Post[]>(POSTS_KEY, [
-    {
-      idPost: 1,
-      idUsuario: 10,
-      autorNome: 'Pr. Lucas Mendes',
-      autorRole: 'PASTOR',
-      titulo: 'Esperança Viva',
-      data: new Date(Date.now() - 32 * 60 * 1000).toISOString(),
-      conteudo:
-        '“A esperança não decepciona.”\n\nQue a nossa semana comece lembrando que Deus continua trabalhando, mesmo quando ainda não conseguimos ver o resultado. #PalavraDoPastor',
-      tags: ['#PalavraDoPastor'],
-      reacoes: { curtir: 24, amem: 18, userReacted: null },
-      comentariosCount: 2,
-      saved: false,
-    },
-    {
-      idPost: 2,
-      idUsuario: 11,
-      autorNome: 'Rafael Souza',
-      autorRole: 'MEMBRO',
-      data: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-      conteudo:
-        'Bom dia, família! Peço oração pela minha mãe, Dona Célia. Ela fará um procedimento amanhã e estamos confiantes de que o Senhor estará à frente de tudo.\n#Oração',
-      tags: ['#Oração'],
-      reacoes: { curtir: 12, amem: 21, userReacted: 'AMEM' },
-      comentariosCount: 1,
-      saved: false,
-    },
-    {
-      idPost: 3,
-      idUsuario: 10,
-      autorNome: 'Pr. Lucas Mendes',
-      autorRole: 'PASTOR',
-      titulo: 'Culto de Domingo',
-      data: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-      conteudo:
-        'Domingo é dia de estarmos juntos na casa do Pai. Teremos nossa série de estudos sobre Romanos 8 às 10h e às 18h. Traga um amigo! #Aviso #Estudo',
-      tags: ['#Aviso', '#Estudo'],
-      reacoes: { curtir: 31, amem: 14, userReacted: null },
-      comentariosCount: 0,
-      saved: true,
-    },
-    {
-      idPost: 4,
-      idUsuario: 1,
-      autorNome: 'Ana Martins',
-      autorRole: 'MEMBRO',
-      titulo: 'Gratidão',
-      data: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
-      conteudo:
-        'Muito grata pelo grupo de estudo de quarta-feira! A leitura do capítulo 2 de Caminhos de Graça abriu muitas conversas boas no nosso pequeno grupo. #Estudo',
-      tags: ['#Estudo'],
-      reacoes: { curtir: 9, amem: 7, userReacted: 'CURTIR' },
-      comentariosCount: 0,
-      saved: false,
-    },
-  ]));
+  private readonly auth = inject(AuthService);
 
-  readonly comentarios = signal<Comentario[]>(loadFromStorage<Comentario[]>(COMMENTS_KEY, [
-    {
-      idComentarios: 1,
-      idUsuario: 1,
-      autorNome: 'Ana Martins',
-      autorRole: 'MEMBRO',
-      idPost: 1,
-      data: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
-      conteudo: 'Amém, pastor! Palavra necessária para começar a semana com paz.',
-      reacoesCount: 4,
-    },
-    {
-      idComentarios: 2,
-      idUsuario: 11,
-      autorNome: 'Rafael Souza',
-      autorRole: 'MEMBRO',
-      idPost: 1,
-      data: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
-      conteudo: 'Obrigado pela reflexão, Pr. Lucas!',
-      reacoesCount: 2,
-    },
-    {
-      idComentarios: 3,
-      idUsuario: 10,
-      autorNome: 'Pr. Lucas Mendes',
-      autorRole: 'PASTOR',
-      idPost: 2,
-      data: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
-      conteudo: 'Estamos em oração pela Dona Célia e por toda a família, Rafael!',
-      reacoesCount: 8,
-    },
-  ]));
+  /** Posts vindos da API (GET /api/posts). */
+  readonly posts = signal<Post[]>([]);
+  /** true até a primeira resposta da API chegar (para mostrar "Carregando..."). */
+  readonly carregandoPosts = signal(true);
+  /** Comentários já carregados, de todos os posts abertos. */
+  readonly comentarios = signal<Comentario[]>([]);
+  private readonly savedIds = signal<number[]>(loadSavedIds());
+  private readonly comentariosCarregados = new Set<number>();
+
+  /** Mural de Avisos: os últimos posts do Pastor marcados com #Aviso. */
+  readonly avisos = computed<AvisoMural[]>(() =>
+    this.posts()
+      .filter((p) => p.autorRole === 'PASTOR' && /#aviso\b/i.test(p.conteudo))
+      .slice(0, 3)
+      .map((p) => ({
+        id: p.idPost,
+        titulo: p.titulo || p.conteudo.split('\n')[0].replace(/#\S+/g, '').trim().slice(0, 60) || 'Aviso',
+        descricao: p.conteudo.replace(/#\S+/g, '').trim(),
+        data: formatarDataCurta(p.data),
+        autorNome: p.autorNome,
+      })),
+  );
 
   constructor() {
     effect(() => {
       try {
-        localStorage.setItem(POSTS_KEY, JSON.stringify(this.posts()));
-        localStorage.setItem(COMMENTS_KEY, JSON.stringify(this.comentarios()));
+        localStorage.setItem(SAVED_KEY, JSON.stringify(this.savedIds()));
       } catch {
         // ignore storage quota errors
       }
     });
 
-    this.loadPosts();
+    // Recarrega o feed quando o usuário entra ou sai (as reações "minhas" dependem do login).
+    effect(() => {
+      this.auth.currentUser()?.idUsuario;
+      untracked(() => this.loadPosts());
+    });
   }
 
   loadPosts(): void {
@@ -127,35 +74,35 @@ export class CommunityService {
       .get<Post[]>('/api/posts', { withCredentials: true })
       .pipe(catchError(() => of(null)))
       .subscribe((remotePosts) => {
-        if (remotePosts && remotePosts.length > 0) {
-          this.posts.set(remotePosts);
+        this.carregandoPosts.set(false);
+        if (remotePosts) {
+          const salvos = this.savedIds();
+          this.posts.set(remotePosts.map((p) => ({ ...p, saved: salvos.includes(p.idPost) })));
+          this.comentariosCarregados.clear();
+          this.comentarios.set([]);
         }
       });
   }
 
-  readonly avisos = signal<AvisoMural[]>([
-    {
-      id: 1,
-      titulo: 'Culto de Celebração — Domingo',
-      descricao: 'Horários às 10h e 18h no templo principal. Recepção e espaço infantil abertos.',
-      data: 'Este domingo',
-      autorNome: 'Pr. Lucas Mendes',
-    },
-    {
-      id: 2,
-      titulo: 'Grupo de Oração Semanal',
-      descricao: 'Todas as quartas-feiras às 20h. Envie seus pedidos de oração no feed com #Oração.',
-      data: 'Quarta, 20h',
-      autorNome: 'Pr. Lucas Mendes',
-    },
-    {
-      id: 3,
-      titulo: 'Novo Devocional na Biblioteca',
-      descricao: 'O livro "Caminhos de Graça" já está disponível completo na Biblioteca.',
-      data: 'Fixado',
-      autorNome: 'Pr. Lucas Mendes',
-    },
-  ]);
+  /** Busca os comentários de um post na API (uma vez por post, ao abrir a conversa). */
+  loadComments(postId: number): void {
+    if (this.comentariosCarregados.has(postId)) return;
+    this.comentariosCarregados.add(postId);
+    this.http
+      .get<Comentario[]>(`/api/posts/${postId}/comentarios`, { withCredentials: true })
+      .pipe(catchError(() => of(null)))
+      .subscribe((lista) => {
+        if (!lista) {
+          this.comentariosCarregados.delete(postId);
+          return;
+        }
+        this.comentarios.update((atual) => [
+          ...atual.filter((c) => c.idPost !== postId),
+          ...lista,
+        ]);
+      });
+  }
+
 
   createPost(
     user: Usuario,
@@ -227,6 +174,9 @@ export class CommunityService {
   }
 
   toggleSavePost(postId: number): void {
+    this.savedIds.update((ids) =>
+      ids.includes(postId) ? ids.filter((id) => id !== postId) : [...ids, postId],
+    );
     this.posts.update((list) =>
       list.map((p) => (p.idPost === postId ? { ...p, saved: !p.saved } : p)),
     );
@@ -283,4 +233,10 @@ export class CommunityService {
         }
       });
   }
+}
+
+function formatarDataCurta(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 }

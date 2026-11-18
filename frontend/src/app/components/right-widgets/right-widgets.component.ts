@@ -33,6 +33,10 @@ import { CommunityService } from '../../services/community.service';
               </div>
               <p class="text-xs leading-relaxed text-slate-600">{{ aviso.descricao }}</p>
             </article>
+          } @empty {
+            <p class="text-xs leading-relaxed text-slate-500">
+              Nenhum aviso no momento. Os posts do Pastor com #Aviso aparecem aqui.
+            </p>
           }
         </div>
       </section>

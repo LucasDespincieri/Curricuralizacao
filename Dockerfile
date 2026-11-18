@@ -21,7 +21,8 @@ USER app
 COPY --from=build /app/target/*.jar app.jar
 
 # Ajustado para a instancia Free do Render (512 MB RAM / 0.1 CPU)
-ENV JAVA_OPTS="-Xmx300m -XX:MaxMetaspaceSize=128m -Xss512k -XX:+UseSerialGC -XX:TieredStopAtLevel=1"
+# user.timezone: o servidor do Render roda em UTC; sem isso os horarios dos posts ficam 3h adiantados
+ENV JAVA_OPTS="-Xmx300m -XX:MaxMetaspaceSize=128m -Xss512k -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Duser.timezone=America/Sao_Paulo"
 
 EXPOSE 8080
 # O Render injeta a variavel PORT; o application.properties le ela

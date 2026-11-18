@@ -190,7 +190,13 @@ import { BookService } from '../../services/book.service';
           </article>
         } @empty {
           <div class="col-span-full py-12 text-center text-sm text-slate-500">
-            Nenhum livro encontrado para a busca atual.
+            @if (bookService.carregandoLivros()) {
+              Carregando livros...
+            } @else if (bookService.livros().length === 0) {
+              Nenhum livro publicado ainda.
+            } @else {
+              Nenhum livro encontrado para a busca atual.
+            }
           </div>
         }
       </div>

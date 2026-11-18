@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
@@ -259,6 +259,13 @@ export class BookReaderComponent {
   readonly book = computed(() => {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     return this.bookService.getLivroById(id);
+  });
+
+  // Busca na API os grifos do capítulo aberto (o backend devolve vazio para visitante sem login).
+  private readonly carregaGrifos = effect(() => {
+    const b = this.book();
+    const logado = !!this.auth.currentUser();
+    if (b && logado) this.bookService.loadGrifos(b.idLivros, this.currentIndex() + 1);
   });
 
   readonly sections = computed(() => {

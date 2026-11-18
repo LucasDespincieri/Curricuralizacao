@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
@@ -37,9 +37,14 @@ export class UploadService {
 
   /** Envia a imagem e devolve a URL pública (https) gerada pelo Cloudinary. */
   async enviarImagemPost(arquivo: File): Promise<string> {
-    const assinatura = await firstValueFrom(
-      this.http.post<AssinaturaUpload>('/api/uploads/assinatura', {}, { withCredentials: true }),
-    );
+    let assinatura: AssinaturaUpload;
+    try {
+      assinatura = await firstValueFrom(
+        this.http.post<AssinaturaUpload>('/api/uploads/assinatura', {}, { withCredentials: true }),
+      );
+    } catch (err) {
+      throw new Error(mensagemErroAssinatura(err));
+    }
 
     const form = new FormData();
     form.append('file', arquivo);
@@ -48,15 +53,44 @@ export class UploadService {
     form.append('folder', assinatura.folder);
     form.append('signature', assinatura.signature);
 
-    const resposta = await fetch(
-      `https://api.cloudinary.com/v1_1/${assinatura.cloudName}/image/upload`,
-      { method: 'POST', body: form },
-    );
-    const dados = await resposta.json();
+    let resposta: Response;
+    try {
+      resposta = await fetch(
+        `https://api.cloudinary.com/v1_1/${assinatura.cloudName}/image/upload`,
+        { method: 'POST', body: form },
+      );
+    } catch {
+      throw new Error('Não foi possível conectar ao serviço de imagens. Verifique sua internet.');
+    }
+    const dados = await resposta.json().catch(() => null);
     if (!resposta.ok || typeof dados?.secure_url !== 'string') {
       throw new Error(dados?.error?.message ?? 'Falha ao enviar a imagem.');
     }
     return dados.secure_url as string;
+  }
+}
+
+/** Traduz a falha do pedido de assinatura em uma mensagem que ajude a descobrir o problema. */
+function mensagemErroAssinatura(err: unknown): string {
+  if (!(err instanceof HttpErrorResponse)) return 'Não foi possível preparar o envio da imagem.';
+  const doServidor =
+    err.error && typeof err.error === 'object' && typeof err.error.error === 'string'
+      ? (err.error.error as string)
+      : null;
+  switch (err.status) {
+    case 401:
+      return 'Sua sessão expirou. Saia e entre de novo para enviar imagens.';
+    case 404:
+      return 'O servidor ainda não tem o envio de imagens (versão antiga no ar).';
+    case 503:
+      // Com mensagem do nosso backend: falta configurar o Cloudinary. Sem mensagem: Render acordando.
+      return doServidor ?? 'O servidor está iniciando. Aguarde alguns segundos e tente de novo.';
+    case 0:
+    case 502:
+    case 504:
+      return 'O servidor está iniciando. Aguarde alguns segundos e tente de novo.';
+    default:
+      return doServidor ?? `Erro ${err.status} ao preparar o envio da imagem.`;
   }
 }
 

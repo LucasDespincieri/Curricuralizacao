@@ -39,15 +39,17 @@ import { CommunityService } from '../../services/community.service';
                 <p class="mt-0.5 text-xs text-slate-500">
                   &#64;{{ user.username }} · {{ user.email }}
                 </p>
-                <p class="mt-1 flex items-center gap-1 text-xs text-slate-500">
-                  <svg lucideMapPin [size]="13"></svg>
-                  <span>
-                    {{ user.localizacao.bairro }}, {{ user.localizacao.cidade }}/{{
-                      user.localizacao.uf
-                    }}
-                  </span>
-                  <span>· Nasc.: {{ user.nascimento }}</span>
-                </p>
+                @if (localizacaoTexto() || user.nascimento) {
+                  <p class="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                    @if (localizacaoTexto(); as local) {
+                      <svg lucideMapPin [size]="13"></svg>
+                      <span>{{ local }}</span>
+                    }
+                    @if (user.nascimento) {
+                      <span>{{ localizacaoTexto() ? '· ' : '' }}Nasc.: {{ formatarData(user.nascimento) }}</span>
+                    }
+                  </p>
+                }
               </div>
             </div>
 
@@ -260,6 +262,19 @@ import { CommunityService } from '../../services/community.service';
   `,
 })
 export class ProfileComponent {
+  /** "Bairro, Cidade/UF" só com o que o usuário preencheu. */
+  protected readonly localizacaoTexto = computed(() => {
+    const loc = this.auth.currentUser()?.localizacao;
+    if (!loc) return '';
+    const cidadeUf = [loc.cidade, loc.uf].filter(Boolean).join('/');
+    return [loc.bairro, cidadeUf].filter(Boolean).join(', ');
+  });
+
+  protected formatarData(iso: string): string {
+    const [ano, mes, dia] = iso.split('-');
+    return ano && mes && dia ? `${dia}/${mes}/${ano}` : iso;
+  }
+
   protected readonly auth = inject(AuthService);
   private readonly community = inject(CommunityService);
   protected readonly bookService = inject(BookService);

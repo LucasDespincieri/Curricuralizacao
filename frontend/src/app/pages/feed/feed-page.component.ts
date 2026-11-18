@@ -1,7 +1,9 @@
-import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal, viewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { PostCardComponent } from '../../components/post-card/post-card.component';
 import { PostComposerComponent } from '../../components/post-composer/post-composer.component';
+import { AuthService } from '../../services/auth.service';
 import { CommunityService } from '../../services/community.service';
 
 @Component({
@@ -45,8 +47,10 @@ import { CommunityService } from '../../services/community.service';
         </div>
       </header>
 
-      <!-- Composer -->
-      <app-post-composer #composer />
+      <!-- Composer: na aba "Palavra do Pastor" só aparece para o Pastor (ADM) -->
+      @if (podePublicarNaAba()) {
+        <app-post-composer #composer />
+      }
 
       <!-- Feed de Posts -->
       <div>
@@ -54,7 +58,13 @@ import { CommunityService } from '../../services/community.service';
           <app-post-card [post]="post" />
         } @empty {
           <div class="px-6 py-12 text-center text-sm text-slate-500">
-            Nenhuma publicação encontrada nesta aba.
+            @if (community.carregandoPosts()) {
+              Carregando publicações...
+            } @else if (activeTab() === 'PASTOR') {
+              O Pastor ainda não publicou nada por aqui.
+            } @else {
+              Nenhuma publicação ainda. Seja o primeiro a compartilhar!
+            }
           </div>
         }
       </div>
@@ -62,11 +72,17 @@ import { CommunityService } from '../../services/community.service';
   `,
 })
 export class FeedPageComponent {
-  private readonly community = inject(CommunityService);
+  protected readonly community = inject(CommunityService);
+  private readonly auth = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
   private readonly composer = viewChild<PostComposerComponent>('composer');
 
   readonly activeTab = signal<'ALL' | 'PASTOR'>('ALL');
+
+  /** Em "Todos os Posts" qualquer um vê o composer; em "Palavra do Pastor", só o Pastor. */
+  readonly podePublicarNaAba = computed(
+    () => this.activeTab() === 'ALL' || this.auth.currentUser()?.role === 'PASTOR',
+  );
 
   readonly filteredPosts = computed(() => {
     const all = this.community.posts();
@@ -77,9 +93,10 @@ export class FeedPageComponent {
   });
 
   constructor() {
-    effect(() => {
-      const novo = this.route.snapshot.queryParamMap.get('novo');
-      if (novo === '1') {
+    // "Novo Post" na barra lateral leva para /inicio?novo=1: volta para "Todos os Posts" e foca o composer.
+    this.route.queryParamMap.pipe(takeUntilDestroyed(inject(DestroyRef))).subscribe((params) => {
+      if (params.get('novo') === '1') {
+        this.activeTab.set('ALL');
         setTimeout(() => this.composer()?.focusInput(), 50);
       }
     });

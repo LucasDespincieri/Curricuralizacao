@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   LucideBookmark,
@@ -223,6 +223,11 @@ export class PostCardComponent {
   protected readonly auth = inject(AuthService);
 
   readonly showComments = signal(false);
+
+  // Ao abrir a conversa, busca os comentários do post na API.
+  private readonly carregaComentarios = effect(() => {
+    if (this.showComments()) this.community.loadComments(this.post().idPost);
+  });
   readonly newComment = signal('');
 
   protected readonly comments = computed(() =>

@@ -1,203 +1,47 @@
 import { HttpClient } from '@angular/common/http';
-import { effect, inject, Injectable, signal } from '@angular/core';
+import { effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { catchError, of } from 'rxjs';
 import { Capitulo, Grifo, ItemBiblioteca, Livro, Usuario } from '../models/community.models';
+import { AuthService } from './auth.service';
 
-const BOOKS_KEY = 'base_books_v1';
-const SHELF_KEY = 'base_shelf_v1';
-const GRIFOS_KEY = 'base_grifos_v1';
-
-function loadStorage<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
+// Limpa os dados de exemplo que versões antigas do site deixaram guardados no navegador.
+try {
+  localStorage.removeItem('base_books_v1');
+  localStorage.removeItem('base_shelf_v1');
+  localStorage.removeItem('base_grifos_v1');
+} catch {
+  // navegador sem localStorage: nada a limpar
 }
 
 @Injectable({ providedIn: 'root' })
 export class BookService {
   private readonly http = inject(HttpClient);
-  readonly livros = signal<Livro[]>(loadStorage<Livro[]>(BOOKS_KEY, [
-    {
-      idLivros: 1,
-      idUsuario: 10,
-      autorNome: 'Pr. Lucas Mendes',
-      autorRole: 'PASTOR',
-      titulo: 'Caminhos de Graça',
-      descricao:
-        'Um estudo sobre a graça que transforma nossas escolhas, relacionamentos e a maneira de caminhar com Deus.',
-      tempoLeituraMin: 18,
-      corCapa: '#2A4065',
-      publicado: true,
-      secoes: 3,
-      data_inicio: '2024-06-12',
-      conteudoSecoes: [
-        {
-          ordem: 1,
-          tituloSecao: 'A graça que encontra',
-          texto:
-            'Antes de sermos capazes de dar qualquer passo em direção à mudança, a graça já nos alcançou no meio da estrada. Não se trata de mérito acumulado, mas de um convite diário para descansar na fidelidade de Deus.\n\nQuando olhamos para as Escrituras, percebemos que Deus nunca esperou que estivéssemos prontos para nos chamar. Ele nos encontra exatamente onde estamos e, com paciência, nos conduz para onde precisamos ir.',
-        },
-        {
-          ordem: 2,
-          tituloSecao: 'Escolhas no cotidiano',
-          texto:
-            'A espiritualidade cristã não acontece apenas nos momentos solenes de culto; ela se revela na maneira como respondemos a uma mensagem difícil, na paciência no trânsito e na generosidade dentro de casa.\n\nViver pela graça é aprender a responder com misericórdia mesmo quando o ambiente ao redor convida à pressa e ao julgamento.',
-        },
-        {
-          ordem: 3,
-          tituloSecao: 'Caminhando em comunidade',
-          texto:
-            'Ninguém foi criado para caminhar sozinho. A igreja local é o espaço onde aprendemos a carregar os fardos uns dos outros, celebrar pequenas vitórias e perseverar juntos nos dias nublados.',
-        },
-      ],
-    },
-    {
-      idLivros: 2,
-      idUsuario: 12,
-      autorNome: 'Mariana Lopes',
-      autorRole: 'MEMBRO',
-      titulo: 'Oração que sustenta',
-      descricao:
-        'Práticas simples para criar um espaço de silêncio, escuta e confiança no cotidiano.',
-      tempoLeituraMin: 8,
-      corCapa: '#9C7864',
-      publicado: true,
-      secoes: 2,
-      data_inicio: '2024-06-08',
-      conteudoSecoes: [
-        {
-          ordem: 1,
-          tituloSecao: 'O silêncio antes das palavras',
-          texto:
-            'Muitas vezes chegamos à oração com uma lista pronta de urgências, mas esquecemos de parar por alguns instantes para lembrar diante de Quem estamos.\n\nCinco minutos de silêncio atento podem transformar a qualidade do nosso diálogo com Deus.',
-        },
-        {
-          ordem: 2,
-          tituloSecao: 'Orações curtas ao longo do dia',
-          texto:
-            'Orar sem cessar não significa isolar-se do mundo, mas manter o coração aberto a Deus entre uma tarefa e outra.',
-        },
-      ],
-    },
-    {
-      idLivros: 3,
-      idUsuario: 1,
-      autorNome: 'Ana Martins',
-      autorRole: 'MEMBRO',
-      titulo: 'A mesa e o caminho',
-      descricao:
-        'Reflexões sobre hospitalidade cristã, comunhão ao redor da mesa e cuidado mútuo no bairro.',
-      tempoLeituraMin: 12,
-      corCapa: '#7E6A56',
-      publicado: true,
-      secoes: 2,
-      data_inicio: '2024-05-27',
-      conteudoSecoes: [
-        {
-          ordem: 1,
-          tituloSecao: 'Portas abertas',
-          texto:
-            'Nos evangelhos, grande parte dos encontros mais marcantes de Jesus aconteceu ao redor de uma mesa. Compartilhar o pão é um gesto simples que derruba muros e cria pertencimento.',
-        },
-        {
-          ordem: 2,
-          tituloSecao: 'Servir sem perfeccionismo',
-          texto:
-            'Hospitalidade não é sobre ter a casa impecável, mas sobre oferecer um lugar seguro onde as pessoas possam ser ouvidas e acolhidas.',
-        },
-      ],
-    },
-    {
-      idLivros: 4,
-      idUsuario: 10,
-      autorNome: 'Pr. Lucas Mendes',
-      autorRole: 'PASTOR',
-      titulo: 'Fundamentos da Fé',
-      descricao:
-        'Guia introdutório para novos membros e grupos de estudo sobre os pilares do discipulado.',
-      tempoLeituraMin: 22,
-      corCapa: '#5C7062',
-      publicado: true,
-      secoes: 2,
-      data_inicio: '2024-05-15',
-      conteudoSecoes: [
-        {
-          ordem: 1,
-          tituloSecao: 'O que significa seguir a Cristo',
-          texto:
-            'Discipulado é uma jornada contínua de aprendizado, prática e transformação de caráter ao lado da comunidade.',
-        },
-        {
-          ordem: 2,
-          tituloSecao: 'Escritura, oração e serviço',
-          texto:
-            'Três hábitos simples que sustentam uma vida espiritual saudável e frutífera ao longo dos anos.',
-        },
-      ],
-    },
-  ]));
+  private readonly auth = inject(AuthService);
 
-  readonly estante = signal<ItemBiblioteca[]>(
-    loadStorage<ItemBiblioteca[]>(SHELF_KEY, [
-      {
-        idBiblioteca: 1,
-        idUsuario: 1,
-        idLivros: 1,
-        livro: {
-          idLivros: 1,
-          idUsuario: 10,
-          autorNome: 'Pr. Lucas Mendes',
-          autorRole: 'PASTOR',
-          titulo: 'Caminhos de Graça',
-          descricao:
-            'Um estudo sobre a graça que transforma nossas escolhas, relacionamentos e a maneira de caminhar com Deus.',
-          tempoLeituraMin: 18,
-          corCapa: '#2A4065',
-          publicado: true,
-          secoes: 3,
-          data_inicio: '2024-06-12',
-        },
-      },
-      {
-        idBiblioteca: 2,
-        idUsuario: 1,
-        idLivros: 2,
-        livro: {
-          idLivros: 2,
-          idUsuario: 12,
-          autorNome: 'Mariana Lopes',
-          autorRole: 'MEMBRO',
-          titulo: 'Oração que sustenta',
-          descricao:
-            'Práticas simples para criar um espaço de silêncio, escuta e confiança no cotidiano.',
-          tempoLeituraMin: 8,
-          corCapa: '#9C7864',
-          publicado: true,
-          secoes: 2,
-          data_inicio: '2024-06-08',
-        },
-      },
-    ]),
-  );
-
-  readonly grifos = signal<Grifo[]>(loadStorage<Grifo[]>(GRIFOS_KEY, []));
+  /** Livros vindos da API (GET /api/livros). */
+  readonly livros = signal<Livro[]>([]);
+  /** true até a primeira resposta da API chegar. */
+  readonly carregandoLivros = signal(true);
+  /** Estante do usuário logado (GET /api/estante). */
+  readonly estante = signal<ItemBiblioteca[]>([]);
+  /** Grifos do usuário já carregados (por capítulo aberto no leitor). */
+  readonly grifos = signal<Grifo[]>([]);
 
   constructor() {
-    effect(() => {
-      try {
-        localStorage.setItem(BOOKS_KEY, JSON.stringify(this.livros()));
-        localStorage.setItem(SHELF_KEY, JSON.stringify(this.estante()));
-        localStorage.setItem(GRIFOS_KEY, JSON.stringify(this.grifos()));
-      } catch {
-        // ignore storage quota errors
-      }
-    });
-
     this.loadBooks();
-    this.loadEstante();
+
+    // Estante e grifos são do usuário: recarrega quando ele entra ou sai.
+    effect(() => {
+      const logado = !!this.auth.currentUser();
+      untracked(() => {
+        this.grifos.set([]);
+        if (logado) {
+          this.loadEstante();
+        } else {
+          this.estante.set([]);
+        }
+      });
+    });
   }
 
   loadBooks(): void {
@@ -205,7 +49,8 @@ export class BookService {
       .get<Livro[]>('/api/livros', { withCredentials: true })
       .pipe(catchError(() => of(null)))
       .subscribe((remote) => {
-        if (remote && remote.length > 0) {
+        this.carregandoLivros.set(false);
+        if (remote) {
           this.livros.set(remote);
         }
       });
@@ -231,6 +76,23 @@ export class BookService {
     );
   }
 
+  /** Busca na API os grifos do usuário logado em um capítulo. */
+  loadGrifos(idLivro: number, ordemCapitulo: number): void {
+    if (!this.auth.currentUser()) return;
+    this.http
+      .get<Grifo[]>(`/api/livros/${idLivro}/capitulos/${ordemCapitulo}/grifos`, {
+        withCredentials: true,
+      })
+      .pipe(catchError(() => of(null)))
+      .subscribe((lista) => {
+        if (!lista) return;
+        this.grifos.update((atual) => [
+          ...atual.filter((g) => !(g.idLivro === idLivro && g.ordemCapitulo === ordemCapitulo)),
+          ...lista,
+        ]);
+      });
+  }
+
   addGrifo(
     idLivro: number,
     ordemCapitulo: number,
@@ -248,10 +110,27 @@ export class BookService {
       criadoEm: new Date().toISOString(),
     };
     this.grifos.update((list) => [novo, ...list]);
+
+    this.http
+      .post<Grifo>(
+        `/api/livros/${idLivro}/capitulos/${ordemCapitulo}/grifos`,
+        { trecho: novo.trecho, anotacao: novo.anotacao ?? '' },
+        { withCredentials: true },
+      )
+      .pipe(catchError(() => of(null)))
+      .subscribe((salvo) => {
+        this.grifos.update((list) =>
+          salvo ? list.map((g) => (g.id === novo.id ? salvo : g)) : list.filter((g) => g.id !== novo.id),
+        );
+      });
   }
 
   removeGrifo(id: number): void {
     this.grifos.update((list) => list.filter((g) => g.id !== id));
+    this.http
+      .delete(`/api/grifos/${id}`, { withCredentials: true })
+      .pipe(catchError(() => of(null)))
+      .subscribe();
   }
 
   getLivroById(id: number): Livro | undefined {

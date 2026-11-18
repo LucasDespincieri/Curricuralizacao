@@ -15,11 +15,12 @@ public final class ApiMapper {
 
     public static Map<String, Object> toUsuarioDto(Usuario u) {
         Map<String, Object> loc = new LinkedHashMap<>();
-        loc.put("idCidade", u.getCidade() != null ? u.getCidade().getId() : 1);
-        loc.put("cidade", u.getCidade() != null ? u.getCidade().getDescricao() : "São Paulo");
-        loc.put("uf", u.getCidade() != null && u.getCidade().getUF() != null ? u.getCidade().getUF().getUF() : "SP");
+        // Campos não informados no cadastro vão vazios (antes iam valores de exemplo, como "São Paulo").
+        loc.put("idCidade", u.getCidade() != null ? u.getCidade().getId() : 0);
+        loc.put("cidade", u.getCidade() != null ? u.getCidade().getDescricao() : "");
+        loc.put("uf", u.getCidade() != null && u.getCidade().getUF() != null ? u.getCidade().getUF().getUF() : "");
         loc.put("pais", "Brasil");
-        loc.put("bairro", u.getBairro() != null ? u.getBairro() : "Centro");
+        loc.put("bairro", u.getBairro() != null ? u.getBairro() : "");
 
         String username = (u.getNome() != null ? u.getNome() : "membro")
                 .toLowerCase()
@@ -30,7 +31,7 @@ public final class ApiMapper {
         dto.put("nome", u.getNome());
         dto.put("username", username.isEmpty() ? "membro" : username);
         dto.put("email", u.getEmail());
-        dto.put("nascimento", u.getDataNascimento() != null ? u.getDataNascimento().toString() : "1995-01-01");
+        dto.put("nascimento", u.getDataNascimento() != null ? u.getDataNascimento().toString() : "");
         dto.put("dia_cadastro", u.getDataCadastro() != null ? u.getDataCadastro().toLocalDate().toString() : "");
         dto.put("role", mapRole(u.getRole()));
         dto.put("localizacao", loc);
