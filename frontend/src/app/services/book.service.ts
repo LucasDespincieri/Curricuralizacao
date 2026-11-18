@@ -1,4 +1,6 @@
-import { effect, Injectable, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { effect, inject, Injectable, signal } from '@angular/core';
+import { catchError, of } from 'rxjs';
 import { Capitulo, Grifo, ItemBiblioteca, Livro, Usuario } from '../models/community.models';
 
 const BOOKS_KEY = 'base_books_v1';
@@ -16,6 +18,7 @@ function loadStorage<T>(key: string, fallback: T): T {
 
 @Injectable({ providedIn: 'root' })
 export class BookService {
+  private readonly http = inject(HttpClient);
   readonly livros = signal<Livro[]>(loadStorage<Livro[]>(BOOKS_KEY, [
     {
       idLivros: 1,
@@ -192,6 +195,31 @@ export class BookService {
         // ignore storage quota errors
       }
     });
+
+    this.loadBooks();
+    this.loadEstante();
+  }
+
+  loadBooks(): void {
+    this.http
+      .get<Livro[]>('/api/livros', { withCredentials: true })
+      .pipe(catchError(() => of(null)))
+      .subscribe((remote) => {
+        if (remote && remote.length > 0) {
+          this.livros.set(remote);
+        }
+      });
+  }
+
+  loadEstante(): void {
+    this.http
+      .get<ItemBiblioteca[]>('/api/estante', { withCredentials: true })
+      .pipe(catchError(() => of(null)))
+      .subscribe((remote) => {
+        if (remote) {
+          this.estante.set(remote);
+        }
+      });
   }
 
   getGrifos(idLivro: number, ordemCapitulo: number, idUsuario: number): Grifo[] {
@@ -238,6 +266,10 @@ export class BookService {
     const exists = this.isSaved(livro.idLivros);
     if (exists) {
       this.estante.update((items) => items.filter((i) => i.idLivros !== livro.idLivros));
+      this.http
+        .delete(`/api/estante/${livro.idLivros}`, { withCredentials: true })
+        .pipe(catchError(() => of(null)))
+        .subscribe();
     } else {
       const novoItem: ItemBiblioteca = {
         idBiblioteca: Date.now(),
@@ -246,6 +278,10 @@ export class BookService {
         livro,
       };
       this.estante.update((items) => [novoItem, ...items]);
+      this.http
+        .post(`/api/estante/${livro.idLivros}`, {}, { withCredentials: true })
+        .pipe(catchError(() => of(null)))
+        .subscribe();
     }
   }
 
@@ -301,6 +337,18 @@ export class BookService {
     };
 
     this.livros.update((list) => [novo, ...list]);
+    this.http
+      .post<Livro>(
+        '/api/livros',
+        { titulo: novo.titulo, conteudoSecoes: novo.conteudoSecoes },
+        { withCredentials: true },
+      )
+      .pipe(catchError(() => of(null)))
+      .subscribe((created) => {
+        if (created) {
+          this.livros.update((list) => list.map((l) => (l.idLivros === novo.idLivros ? created : l)));
+        }
+      });
     return novo;
   }
 }

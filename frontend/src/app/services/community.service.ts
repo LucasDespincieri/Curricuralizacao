@@ -1,4 +1,6 @@
-import { effect, Injectable, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { effect, inject, Injectable, signal } from '@angular/core';
+import { catchError, of } from 'rxjs';
 import { AvisoMural, Comentario, Post, ReacaoTipo, Usuario } from '../models/community.models';
 
 const POSTS_KEY = 'base_posts_v1';
@@ -15,6 +17,7 @@ function loadFromStorage<T>(key: string, fallback: T): T {
 
 @Injectable({ providedIn: 'root' })
 export class CommunityService {
+  private readonly http = inject(HttpClient);
   readonly posts = signal<Post[]>(loadFromStorage<Post[]>(POSTS_KEY, [
     {
       idPost: 1,
@@ -115,6 +118,19 @@ export class CommunityService {
         // ignore storage quota errors
       }
     });
+
+    this.loadPosts();
+  }
+
+  loadPosts(): void {
+    this.http
+      .get<Post[]>('/api/posts', { withCredentials: true })
+      .pipe(catchError(() => of(null)))
+      .subscribe((remotePosts) => {
+        if (remotePosts && remotePosts.length > 0) {
+          this.posts.set(remotePosts);
+        }
+      });
   }
 
   readonly avisos = signal<AvisoMural[]>([
@@ -156,6 +172,19 @@ export class CommunityService {
       saved: false,
     };
     this.posts.update((list) => [novo, ...list]);
+
+    this.http
+      .post<Post>(
+        '/api/posts',
+        { titulo: novo.titulo, conteudo: novo.conteudo },
+        { withCredentials: true },
+      )
+      .pipe(catchError(() => of(null)))
+      .subscribe((created) => {
+        if (created) {
+          this.posts.update((list) => list.map((p) => (p.idPost === novo.idPost ? created : p)));
+        }
+      });
   }
 
   toggleReaction(postId: number, tipo: ReacaoTipo): void {
@@ -190,6 +219,11 @@ export class CommunityService {
   deletePost(postId: number): void {
     this.posts.update((list) => list.filter((p) => p.idPost !== postId));
     this.comentarios.update((list) => list.filter((c) => c.idPost !== postId));
+
+    this.http
+      .delete(`/api/posts/${postId}`, { withCredentials: true })
+      .pipe(catchError(() => of(null)))
+      .subscribe();
   }
 
   getCommentsForPost(postId: number): Comentario[] {

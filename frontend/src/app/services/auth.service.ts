@@ -1,4 +1,6 @@
-import { effect, Injectable, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { effect, inject, Injectable, signal } from '@angular/core';
+import { catchError, of } from 'rxjs';
 import { Usuario } from '../models/community.models';
 
 const USER_KEY = 'base_user_v1';
@@ -31,6 +33,7 @@ function loadUser(): Usuario | null {
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
+  private readonly http = inject(HttpClient);
   readonly currentUser = signal<Usuario | null>(loadUser());
 
   constructor() {
@@ -41,10 +44,34 @@ export class AuthService {
         // ignore storage quota errors
       }
     });
+
+    this.refreshSession();
   }
 
-  login(email: string, _senha: string): boolean {
+  refreshSession(): void {
+    this.http
+      .get<Usuario>('/api/auth/me', { withCredentials: true })
+      .pipe(catchError(() => of(null)))
+      .subscribe((user) => {
+        if (user) {
+          this.currentUser.set(user);
+        }
+      });
+  }
+
+  login(email: string, senha: string): boolean {
     if (!email.trim()) return false;
+
+    this.http
+      .post<Usuario>('/api/auth/login', { email, senha }, { withCredentials: true })
+      .pipe(catchError(() => of(null)))
+      .subscribe((user) => {
+        if (user) {
+          this.currentUser.set(user);
+        }
+      });
+
+    // Atualização otimista / fallback local caso o backend esteja offline
     this.currentUser.set({
       idUsuario: 1,
       nome: email.includes('lucas') ? 'Pr. Lucas Mendes' : 'Ana Martins',
@@ -67,6 +94,7 @@ export class AuthService {
   register(dados: {
     nome: string;
     email: string;
+    senha?: string;
     nascimento: string;
     bairro: string;
     cidade: string;
@@ -77,6 +105,25 @@ export class AuthService {
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]/g, '');
+
+    this.http
+      .post<Usuario>(
+        '/api/auth/register',
+        {
+          nome: dados.nome,
+          email: dados.email,
+          senha: dados.senha || '123456',
+          nascimento: dados.nascimento,
+          bairro: dados.bairro,
+        },
+        { withCredentials: true },
+      )
+      .pipe(catchError(() => of(null)))
+      .subscribe((user) => {
+        if (user) {
+          this.currentUser.set(user);
+        }
+      });
 
     this.currentUser.set({
       idUsuario: Date.now(),
@@ -104,6 +151,20 @@ export class AuthService {
   }): void {
     const user = this.currentUser();
     if (!user) return;
+
+    this.http
+      .put<Usuario>(
+        '/api/auth/profile',
+        { nome: patch.nome, bairro: patch.bairro },
+        { withCredentials: true },
+      )
+      .pipe(catchError(() => of(null)))
+      .subscribe((updated) => {
+        if (updated) {
+          this.currentUser.set(updated);
+        }
+      });
+
     this.currentUser.set({
       ...user,
       nome: patch.nome ?? user.nome,
@@ -119,6 +180,10 @@ export class AuthService {
   }
 
   logout(): void {
+    this.http
+      .post('/api/auth/logout', {}, { withCredentials: true })
+      .pipe(catchError(() => of(null)))
+      .subscribe();
     this.currentUser.set(null);
   }
 }
