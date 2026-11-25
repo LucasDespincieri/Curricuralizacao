@@ -32,8 +32,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         // Recursos estáticos (estilos CSS, scripts JS, imagens e ícone) liberados para qualquer visitante.
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
-                        // Telas públicas principais: página inicial, feed geral, tela de login e página de cadastro liberadas para todos.
-                        .requestMatchers("/", "/feed", "/login", "/cadastro").permitAll()
+                        // Telas públicas principais: página inicial, feed geral, tela de login, página de cadastro e painel de relatórios analíticos liberadas para todos.
+                        .requestMatchers("/", "/feed", "/login", "/cadastro", "/relatorios", "/relatorios/**").permitAll()
                         // Catálogo público de livros e rota de leitura de capítulos liberados para visitação pública.
                         .requestMatchers("/biblioteca", "/livros/*/ler").permitAll()
                         // Rotas administrativas iniciadas por /admin/ restritas exclusivamente a usuários com papel ADM (Pastor/Admin).

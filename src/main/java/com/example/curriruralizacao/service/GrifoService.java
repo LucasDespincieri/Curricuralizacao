@@ -51,7 +51,7 @@ public class GrifoService {
 
     // Lista todas as marcações particulares feitas pelo usuário no capítulo específico que está sendo lido.
     @Transactional(readOnly = true)
-    public List<Grifo> listarGrifosDoCapitulo(Long capituloId, Integer usuarioId) {
+    public List<Grifo> listarGrifosDoCapitulo(Long capituloId, Integer  usuarioId) {
         // Se não houver usuário logado (visitante público), retorna lista vazia.
         if (usuarioId == null) {
             return Collections.emptyList();
