@@ -77,6 +77,14 @@ public class UsuarioService implements UserDetailsService {
         return usuarioRepository.save(usuario);
     }
 
+    // Executa algo com o usuário DENTRO de uma transação de leitura. A cidade e a UF do usuário são carregadas sob
+    // demanda (lazy): ler essas informações fora de uma transação (ex.: ao montar a resposta do login ou do /me)
+    // dava LazyInitializationException para quem tem cidade cadastrada.
+    @Transactional(readOnly = true)
+    public <T> T comUsuario(String email, java.util.function.Function<Usuario, T> funcao) {
+        return funcao.apply(buscarPorEmail(email));
+    }
+
     // Localiza um usuário pelo seu e-mail cadastrado (lança exceção caso não exista).
     @Transactional(readOnly = true)
     public Usuario buscarPorEmail(String email) {

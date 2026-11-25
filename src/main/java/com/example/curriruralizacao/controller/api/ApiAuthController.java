@@ -52,8 +52,7 @@ public class ApiAuthController {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Não autenticado"));
         }
-        Usuario user = usuarioService.buscarPorEmail(principal.getName());
-        return ResponseEntity.ok(ApiMapper.toUsuarioDto(user));
+        return ResponseEntity.ok(usuarioService.comUsuario(principal.getName(), ApiMapper::toUsuarioDto));
     }
 
     @PostMapping("/login")
@@ -69,8 +68,7 @@ public class ApiAuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "E-mail ou senha inválidos."));
         }
-        Usuario user = usuarioService.buscarPorEmail(email);
-        return ResponseEntity.ok(ApiMapper.toUsuarioDto(user));
+        return ResponseEntity.ok(usuarioService.comUsuario(email, ApiMapper::toUsuarioDto));
     }
 
     @PostMapping("/register")
@@ -147,7 +145,7 @@ public class ApiAuthController {
             }
         }
         user = usuarioRepository.save(user);
-        return ResponseEntity.ok(ApiMapper.toUsuarioDto(user));
+        return ResponseEntity.ok(usuarioService.comUsuario(user.getEmail(), ApiMapper::toUsuarioDto));
     }
 
     @PostMapping("/logout")
