@@ -1,6 +1,6 @@
 export type Role = 'PASTOR' | 'MEMBRO';
 
-export type ReacaoTipo = 'CURTIR' | 'AMEM';
+export type ReacaoTipo = 'CURTIR' | 'AMEM' | 'ORANDO';
 
 export interface Localizacao {
   idCidade: number;
@@ -51,6 +51,7 @@ export interface Post {
   reacoes: {
     curtir: number;
     amem: number;
+    orando?: number; // "Estou orando" (posts antigos podem não ter o campo)
     userReacted?: ReacaoTipo | null;
   };
   comentariosCount: number;

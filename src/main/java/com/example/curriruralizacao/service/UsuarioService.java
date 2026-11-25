@@ -71,6 +71,7 @@ public class UsuarioService implements UserDetailsService {
         usuario.setSenha(passwordEncoder.encode(form.getSenha()));
         // Define o papel padrão inicial de novo membro comum (USR).
         usuario.setRole(Roles.USR);
+        usuario.setDataCadastro(java.time.LocalDateTime.now());
 
         // Salva e retorna o usuário persistido com ID gerado.
         return usuarioRepository.save(usuario);

@@ -28,4 +28,24 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Integer> {
     // SELECT COUNT(*) > 0 FROM usuario WHERE email = :email
     // Retorna boolean direto sem carregar todo o objeto na memória (ideal para validação de unicidade de e-mail no cadastro).
     boolean existsByEmail(String email); // Verifica se já existe um usuário cadastrado com o e-mail informado.
+
+    // Quantos membros moram na cidade (impede excluir cidade em uso).
+    long countByCidade_Id(Integer cidadeId);
+
+    // [id da cidade, quantidade de membros] para todas as cidades que têm algum morador.
+    @org.springframework.data.jpa.repository.Query(
+            "select u.cidade.id, count(u) from Usuario u where u.cidade is not null group by u.cidade.id")
+    List<Object[]> contarMembrosPorCidade();
+
+    // Formulário de Filtro do CRUD de Membros: busca por nome ou e-mail.
+    @org.springframework.data.jpa.repository.Query(
+            "select u from Usuario u " +
+            "where lower(u.nome) like lower(concat('%', :termo, '%')) " +
+            "   or lower(u.email) like lower(concat('%', :termo, '%')) " +
+            "order by u.nome")
+    List<Usuario> buscarPorNomeOuEmail(@org.springframework.data.repository.query.Param("termo") String termo);
+
+    List<Usuario> findAllByOrderByNomeAsc();
+
+    long countByRole(com.example.curriruralizacao.model.ENUMS.Roles role);
 }

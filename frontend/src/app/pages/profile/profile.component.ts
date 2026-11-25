@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { LucideChevronRight, LucideEdit3, LucideMapPin } from '@lucide/angular';
+import { LucideChevronRight, LucideEdit3, LucideMapPin, LucideTrash2 } from '@lucide/angular';
 import { PostCardComponent } from '../../components/post-card/post-card.component';
 import { AuthService } from '../../services/auth.service';
 import { BookService } from '../../services/book.service';
@@ -10,7 +10,7 @@ import { CommunityService } from '../../services/community.service';
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [FormsModule, RouterLink, PostCardComponent, LucideMapPin, LucideEdit3, LucideChevronRight],
+  imports: [FormsModule, RouterLink, PostCardComponent, LucideMapPin, LucideEdit3, LucideChevronRight, LucideTrash2],
   template: `
     @if (auth.currentUser(); as user) {
       <div class="px-6 py-6">
@@ -78,9 +78,12 @@ import { CommunityService } from '../../services/community.service';
                 <label class="mb-1 block text-xs font-semibold text-slate-600">E-mail</label>
                 <input
                   type="email"
-                  [(ngModel)]="editEmail"
-                  class="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-slate-400 focus:outline-none"
+                  [value]="user.email"
+                  readonly
+                  title="O e-mail é usado para entrar e não pode ser alterado"
+                  class="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500"
                 />
+                <p class="mt-1 text-[11px] text-slate-400">Usado para entrar; não pode ser alterado.</p>
               </div>
               <div>
                 <label class="mb-1 block text-xs font-semibold text-slate-600">Bairro</label>
@@ -109,13 +112,17 @@ import { CommunityService } from '../../services/community.service';
                   />
                 </div>
               </div>
-              <div class="sm:col-span-2 flex justify-end">
+              <div class="sm:col-span-2 flex items-center justify-end gap-3">
+                @if (erroPerfil()) {
+                  <p class="text-xs font-medium text-rose-600">{{ erroPerfil() }}</p>
+                }
                 <button
                   type="button"
                   (click)="saveProfile()"
-                  class="rounded-xl bg-slate-800 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-900"
+                  [disabled]="salvandoPerfil()"
+                  class="rounded-xl bg-slate-800 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-900 disabled:opacity-50"
                 >
-                  Salvar Dados
+                  {{ salvandoPerfil() ? 'Salvando...' : 'Salvar Dados' }}
                 </button>
               </div>
             </div>
@@ -195,7 +202,7 @@ import { CommunityService } from '../../services/community.service';
             @for (book of myBooks(); track book.idLivros) {
               <article class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
                 <div
-                  class="flex h-24 items-end p-4"
+                  class="tema-claro flex h-24 items-end p-4"
                   [style.backgroundColor]="book.corCapa || '#2A4065'"
                 >
                   <span class="rounded-full bg-white/90 px-2.5 py-0.5 text-[11px] font-semibold text-slate-800">
@@ -205,7 +212,7 @@ import { CommunityService } from '../../services/community.service';
                 <div class="p-4">
                   <h3 class="text-base font-bold text-slate-900">{{ book.titulo }}</h3>
                   <p class="mt-0.5 text-xs text-slate-400">
-                    {{ book.secoes }} seções · {{ book.data_inicio }}
+                    {{ book.secoes }} {{ book.secoes === 1 ? 'seção' : 'seções' }} · {{ book.data_inicio }}
                   </p>
                   <div class="mt-4 flex items-center gap-3">
                     <a
@@ -221,6 +228,15 @@ import { CommunityService } from '../../services/community.service';
                       <span>Visualizar</span>
                       <svg lucideChevronRight [size]="14"></svg>
                     </a>
+                    <button
+                      type="button"
+                      (click)="excluirLivro(book.idLivros, book.titulo)"
+                      [attr.aria-label]="'Excluir ' + book.titulo"
+                      title="Excluir livro"
+                      class="ml-auto rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                    >
+                      <svg lucideTrash2 [size]="14"></svg>
+                    </button>
                   </div>
                 </div>
               </article>
@@ -310,15 +326,41 @@ export class ProfileComponent {
     this.editing.update((v) => !v);
   }
 
+  async excluirLivro(id: number, titulo: string): Promise<void> {
+    if (!confirm(`Excluir o livro "${titulo}"? Os capítulos e os grifos dos leitores também serão apagados.`)) return;
+    try {
+      await this.bookService.excluirLivro(id);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Não foi possível excluir o livro.');
+    }
+  }
+
+  readonly salvandoPerfil = signal(false);
+  readonly erroPerfil = signal<string | null>(null);
+
   saveProfile(): void {
-    this.auth.updateProfile({
-      nome: this.editNome,
-      email: this.editEmail,
-      bairro: this.editBairro,
-      cidade: this.editCidade,
-      uf: this.editUf.toUpperCase(),
-    });
-    this.editing.set(false);
+    const cidade = this.editCidade.trim();
+    const uf = this.editUf.trim().toUpperCase();
+    if ((cidade && !uf) || (!cidade && uf)) {
+      this.erroPerfil.set('Preencha cidade e UF juntos (ou deixe os dois em branco).');
+      return;
+    }
+    if (uf && !/^[A-Z]{2}$/.test(uf)) {
+      this.erroPerfil.set('A UF deve ter 2 letras, como SP.');
+      return;
+    }
+    this.salvandoPerfil.set(true);
+    this.erroPerfil.set(null);
+    this.auth
+      .updateProfile({ nome: this.editNome, bairro: this.editBairro, cidade, uf })
+      .subscribe((res) => {
+        this.salvandoPerfil.set(false);
+        if (res.ok) {
+          this.editing.set(false);
+        } else {
+          this.erroPerfil.set(res.error ?? 'Não foi possível salvar o perfil.');
+        }
+      });
   }
 
   getInitials(nome: string): string {

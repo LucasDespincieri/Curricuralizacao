@@ -42,8 +42,9 @@ public class ApiBibliotecaController {
 
     @GetMapping("/livros")
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> listarLivros() {
-        return livroService.listarTodosLivros().stream()
+    public List<Map<String, Object>> listarLivros(@RequestParam(value = "busca", required = false) String busca) {
+        // Formulário de Filtro: com ?busca=..., só os livros cujo título contém o termo.
+        return livroService.filtrarLivros(busca).stream()
                 .map(l -> ApiMapper.toLivroDto(l, livroService.listarCapitulosDoLivro(l.getId())))
                 .toList();
     }
@@ -68,6 +69,7 @@ public class ApiBibliotecaController {
         }
 
         Livro livro = new Livro(titulo.length() > 200 ? titulo.substring(0, 200) : titulo, user);
+        livro.setDescricao(textoOuNulo(body.get("descricao")));
         livro = livroRepository.save(livro);
 
         @SuppressWarnings("unchecked")
@@ -81,7 +83,83 @@ public class ApiBibliotecaController {
             salvos.add(capituloRepository.save(cap));
         }
 
+        // Quem escreveu o livro já o encontra na própria estante.
+        usuarioService.adicionarLivroABiblioteca(livro.getId(), user.getId());
+
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiMapper.toLivroDto(livro, salvos));
+    }
+
+    // Edita título, descrição e seções. Só o autor do livro pode editar.
+    // As seções são casadas pela ordem: a 1ª do formulário atualiza o capítulo 1, e assim por diante.
+    // Assim os grifos dos leitores continuam ligados aos capítulos que não foram removidos.
+    @PutMapping("/livros/{id}")
+    @Transactional
+    public ResponseEntity<?> editarLivro(@PathVariable Long id,
+                                         @RequestBody Map<String, Object> body,
+                                         Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Não autenticado"));
+        }
+        Usuario user = usuarioService.buscarPorEmail(principal.getName());
+        Livro livro = livroService.buscarLivroPorId(id);
+        if (!livro.getAutor().getId().equals(user.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Só o autor pode editar este livro."));
+        }
+
+        String titulo = Objects.toString(body.get("titulo"), "").trim();
+        if (titulo.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Título é obrigatório"));
+        }
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> secoes = (List<Map<String, Object>>) body.getOrDefault("conteudoSecoes", List.of());
+        if (secoes.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "O livro precisa ter pelo menos uma seção."));
+        }
+
+        livro.setTitulo(titulo.length() > 200 ? titulo.substring(0, 200) : titulo);
+        livro.setDescricao(textoOuNulo(body.get("descricao")));
+
+        // Tudo passa pela lista do livro (cascade + orphanRemoval): remover da lista apaga o capítulo
+        // e os grifos dele; adicionar na lista cria o capítulo novo.
+        List<Capitulo> capitulos = livro.getCapitulos();
+        capitulos.sort(Comparator.comparing(Capitulo::getOrdem));
+        for (int i = 0; i < secoes.size(); i++) {
+            Map<String, Object> s = secoes.get(i);
+            String tituloSecao = Objects.toString(s.get("tituloSecao"), "Seção " + (i + 1)).trim();
+            String texto = Objects.toString(s.get("texto"), "").trim();
+            if (i < capitulos.size()) {
+                Capitulo cap = capitulos.get(i);
+                cap.setOrdem(i + 1);
+                cap.setTitulo(tituloSecao);
+                cap.setConteudo(texto);
+            } else {
+                capitulos.add(new Capitulo(i + 1, tituloSecao, texto, livro));
+            }
+        }
+        while (capitulos.size() > secoes.size()) {
+            capitulos.remove(capitulos.size() - 1);
+        }
+
+        livro = livroRepository.saveAndFlush(livro);
+        return ResponseEntity.ok(ApiMapper.toLivroDto(livro, livroService.listarCapitulosDoLivro(id)));
+    }
+
+    // Exclui o livro (com capítulos e grifos). Só o autor — ou o Pastor, para moderação.
+    @DeleteMapping("/livros/{id}")
+    @Transactional
+    public ResponseEntity<?> excluirLivro(@PathVariable Long id, Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Não autenticado"));
+        }
+        Usuario user = usuarioService.buscarPorEmail(principal.getName());
+        livroService.excluirLivroPeloAutor(id, user); // SecurityException vira 403 no ApiExceptionHandler
+        return ResponseEntity.ok(Map.of("deleted", true));
+    }
+
+    private static String textoOuNulo(Object valor) {
+        String texto = Objects.toString(valor, "").trim();
+        return texto.isEmpty() ? null : texto;
     }
 
     @GetMapping("/estante")

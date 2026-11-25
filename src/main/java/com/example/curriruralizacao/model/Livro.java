@@ -29,6 +29,10 @@ public class Livro {
     @Column(nullable = false, length = 200)
     private String titulo; // Título da obra/livro.
 
+    // Resumo exibido no card da biblioteca. Opcional.
+    @Column(columnDefinition = "TEXT")
+    private String descricao;
+
     // Data de publicação do livro no sistema: obrigatória e não modificável após inserção.
     @Column(name = "data_publicacao", nullable = false, updatable = false)
     private LocalDateTime dataPublicacao; // Data e hora em que a obra foi cadastrada.

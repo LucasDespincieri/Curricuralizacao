@@ -2,13 +2,14 @@ import { Component, computed, effect, inject, input, signal } from '@angular/cor
 import { FormsModule } from '@angular/forms';
 import {
   LucideBookmark,
+  LucideHandHeart,
   LucideHeart,
   LucideMessageCircle,
   LucideSend,
   LucideThumbsUp,
   LucideTrash2,
 } from '@lucide/angular';
-import { Post } from '../../models/community.models';
+import { Post, ReacaoTipo } from '../../models/community.models';
 import { AuthService } from '../../services/auth.service';
 import { CommunityService } from '../../services/community.service';
 import { LoginPromptService } from '../../services/login-prompt.service';
@@ -20,6 +21,7 @@ import { urlImagemOtimizada } from '../../services/upload.service';
   imports: [
     FormsModule,
     LucideHeart,
+    LucideHandHeart,
     LucideThumbsUp,
     LucideMessageCircle,
     LucideBookmark,
@@ -105,6 +107,18 @@ import { urlImagemOtimizada } from '../../services/upload.service';
 
               <button
                 type="button"
+                (click)="reagir('ORANDO')"
+                title="Estou orando por isso"
+                class="inline-flex items-center gap-1.5 text-xs font-medium transition hover:text-indigo-600"
+                [class.font-semibold]="post().reacoes.userReacted === 'ORANDO'"
+                [class.text-indigo-600]="post().reacoes.userReacted === 'ORANDO'"
+              >
+                <svg lucideHandHeart [size]="16"></svg>
+                <span>Orando ({{ post().reacoes.orando ?? 0 }})</span>
+              </button>
+
+              <button
+                type="button"
                 (click)="toggleComments()"
                 class="inline-flex items-center gap-1.5 text-xs font-medium transition hover:text-slate-900"
                 [class.text-slate-900]="showComments()"
@@ -129,7 +143,7 @@ import { urlImagemOtimizada } from '../../services/upload.service';
               @if (canDelete()) {
                 <button
                   type="button"
-                  (click)="community.deletePost(post().idPost)"
+                  (click)="excluir()"
                   aria-label="Excluir post"
                   title="Excluir publicação"
                   class="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
@@ -248,9 +262,14 @@ export class PostCardComponent {
     }));
   });
 
-  reagir(tipo: 'CURTIR' | 'AMEM'): void {
+  reagir(tipo: ReacaoTipo): void {
     if (!this.loginPrompt.exigirLogin('Entre na sua conta para reagir aos posts.')) return;
     this.community.toggleReaction(this.post().idPost, tipo);
+  }
+
+  excluir(): void {
+    if (!confirm('Excluir este post? Essa ação não pode ser desfeita.')) return;
+    this.community.deletePost(this.post().idPost);
   }
 
   salvar(): void {

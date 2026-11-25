@@ -174,7 +174,7 @@ export class PostComposerComponent implements OnDestroy {
 
     this.limparPreview();
     this.erroImagem.set(null);
-    this.imagemUrl.set(null);
+    this.descartarEnviada(); // trocou de imagem: a anterior não vai ser usada
     this.previewUrl.set(URL.createObjectURL(arquivo));
     this.enviandoImagem.set(true);
 
@@ -182,7 +182,11 @@ export class PostComposerComponent implements OnDestroy {
     const envio = ++this.envioAtual;
     try {
       const url = await this.upload.enviarImagemPost(arquivo);
-      if (envio === this.envioAtual) this.imagemUrl.set(url);
+      if (envio === this.envioAtual) {
+        this.imagemUrl.set(url);
+      } else {
+        this.upload.descartarImagem(url); // o usuário removeu/trocou a imagem durante o envio
+      }
     } catch (e) {
       if (envio === this.envioAtual) {
         this.limparPreview();
@@ -195,7 +199,14 @@ export class PostComposerComponent implements OnDestroy {
     }
   }
 
+  /** X da pré-visualização: tira a imagem do post e apaga ela do Cloudinary. */
   removerImagem(): void {
+    this.descartarEnviada();
+    this.resetarImagem();
+  }
+
+  /** Limpa o estado da imagem SEM apagar do Cloudinary (usado depois de publicar). */
+  private resetarImagem(): void {
     this.envioAtual++;
     this.limparPreview();
     this.imagemUrl.set(null);
@@ -203,7 +214,15 @@ export class PostComposerComponent implements OnDestroy {
     this.erroImagem.set(null);
   }
 
+  private descartarEnviada(): void {
+    const url = this.imagemUrl();
+    if (url) this.upload.descartarImagem(url);
+    this.imagemUrl.set(null);
+  }
+
   ngOnDestroy(): void {
+    // Saiu da página com uma imagem enviada e não publicada: apaga para não sobrar no Cloudinary.
+    this.descartarEnviada();
     this.limparPreview();
   }
 
@@ -234,7 +253,7 @@ export class PostComposerComponent implements OnDestroy {
     this.titulo.set('');
     this.conteudo.set('');
     this.selectedTags.set([]);
-    this.removerImagem();
+    this.resetarImagem(); // a imagem agora pertence ao post: não pode ser apagada
     this.postCreated.emit();
   }
 }

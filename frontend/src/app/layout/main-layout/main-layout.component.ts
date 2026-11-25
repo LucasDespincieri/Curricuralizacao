@@ -1,7 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
-import { LucideMenu, LucideX } from '@lucide/angular';
+import { LucideMenu, LucideMoon, LucideSun, LucideX } from '@lucide/angular';
+import { IconeBibliaComponent } from '../../components/marca/icone-biblia.component';
+import { ThemeService } from '../../services/theme.service';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { RightWidgetsComponent } from '../../components/right-widgets/right-widgets.component';
 import { LoginPromptComponent } from '../../components/login-prompt/login-prompt.component';
@@ -18,22 +20,36 @@ import { AuthService } from '../../services/auth.service';
     LoginPromptComponent,
     LucideMenu,
     LucideX,
+    LucideSun,
+    LucideMoon,
+    IconeBibliaComponent,
   ],
   template: `
-    <div class="min-h-screen bg-[#FAFAFA] text-slate-900">
+    <div class="min-h-screen bg-fundo text-slate-900">
       <!-- Header Mobile -->
       <header
         class="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 lg:hidden"
       >
-        <div class="flex items-center gap-2.5">
-          <span
-            class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800 text-xs font-bold text-white"
-          >
-            B!
+        <a routerLink="/inicio" class="flex items-center gap-2.5" aria-label="BASE! — página inicial">
+          <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-800 text-white">
+            <app-icone-biblia [size]="18" />
           </span>
-          <span class="font-bold text-slate-900">Comunidade DA FÉ</span>
-        </div>
+          <span class="font-marca text-[1.75rem] leading-none font-black tracking-tight text-slate-900">BASE!</span>
+        </a>
         <div class="flex items-center gap-2">
+        <button
+          type="button"
+          (click)="tema.alternar()"
+          class="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
+          [attr.aria-label]="tema.escuro() ? 'Usar modo claro' : 'Usar modo escuro'"
+          [title]="tema.escuro() ? 'Modo claro' : 'Modo escuro'"
+        >
+          @if (tema.escuro()) {
+            <svg lucideSun [size]="18"></svg>
+          } @else {
+            <svg lucideMoon [size]="18"></svg>
+          }
+        </button>
         @if (!auth.currentUser()) {
           <a
             routerLink="/login"
@@ -60,7 +76,7 @@ import { AuthService } from '../../services/auth.service';
       <!-- Mobile Drawer -->
       @if (mobileMenuOpen()) {
         <div
-          class="fixed inset-0 z-40 bg-slate-900/40 lg:hidden"
+          class="fixed inset-0 z-40 bg-black/50 lg:hidden"
           (click)="mobileMenuOpen.set(false)"
         >
           <div class="h-full w-64 bg-white" (click)="$event.stopPropagation()">
@@ -102,6 +118,7 @@ import { AuthService } from '../../services/auth.service';
   `,
 })
 export class MainLayoutComponent {
+  protected readonly tema = inject(ThemeService);
   protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   readonly mobileMenuOpen = signal(false);

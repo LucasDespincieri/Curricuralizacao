@@ -26,7 +26,7 @@ import { BookService } from '../../services/book.service';
             class="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs"
           >
             <div
-              class="flex h-28 items-end p-4"
+              class="tema-claro flex h-28 items-end p-4"
               [style.backgroundColor]="item.livro.corCapa || '#2A4065'"
             >
               <span class="rounded-md bg-[#E3D3B7] px-2.5 py-1 text-[10px] font-bold text-slate-900 uppercase">

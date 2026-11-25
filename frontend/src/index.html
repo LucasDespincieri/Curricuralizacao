@@ -1,11 +1,22 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <title>Frontend</title>
+  <title>BASE!</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <script>
+    // Aplica o tema salvo antes do site aparecer (sem "piscar" claro ao atualizar a página).
+    // Sem escolha salva, segue o tema do sistema operacional.
+    (function () {
+      try {
+        var tema = localStorage.getItem('base_tema');
+        var escuro = tema ? tema === 'escuro' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (escuro) document.documentElement.classList.add('dark');
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <app-root></app-root>

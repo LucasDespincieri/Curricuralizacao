@@ -3,6 +3,7 @@ package com.example.curriruralizacao.controller.api;
 import com.example.curriruralizacao.DTO.CadastroForm;
 import com.example.curriruralizacao.model.Usuario;
 import com.example.curriruralizacao.repository.UsuarioRepository;
+import com.example.curriruralizacao.service.LocalizacaoService;
 import com.example.curriruralizacao.service.UsuarioService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -28,12 +29,16 @@ public class ApiAuthController {
     private final UsuarioService usuarioService;
     private final UsuarioRepository usuarioRepository;
 
+    private final LocalizacaoService localizacaoService;
+
     public ApiAuthController(AuthenticationManager authenticationManager,
                              UsuarioService usuarioService,
-                             UsuarioRepository usuarioRepository) {
+                             UsuarioRepository usuarioRepository,
+                             LocalizacaoService localizacaoService) {
         this.authenticationManager = authenticationManager;
         this.usuarioService = usuarioService;
         this.usuarioRepository = usuarioRepository;
+        this.localizacaoService = localizacaoService;
     }
 
     @GetMapping("/me")
@@ -116,6 +121,20 @@ public class ApiAuthController {
         }
         if (body.get("bairro") != null) {
             user.setBairro(body.get("bairro").trim());
+        }
+        // O e-mail é o login, por isso não pode ser alterado aqui (o campo "email" é ignorado de propósito).
+        String cidade = body.get("cidade");
+        String uf = body.get("uf");
+        if (cidade != null && uf != null) {
+            if (cidade.isBlank() && uf.isBlank()) {
+                user.setCidade(null);
+            } else {
+                try {
+                    user.setCidade(localizacaoService.obterOuCriarCidade(cidade, uf));
+                } catch (IllegalArgumentException ex) {
+                    return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+                }
+            }
         }
         user = usuarioRepository.save(user);
         return ResponseEntity.ok(ApiMapper.toUsuarioDto(user));

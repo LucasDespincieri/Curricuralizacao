@@ -40,8 +40,13 @@ export class CommunityService {
   private readonly comentariosCarregados = new Set<number>();
 
   /** Mural de Avisos: os últimos posts do Pastor marcados com #Aviso. */
+  /** Termo da busca do Início ("" = sem filtro). A busca é feita no backend (GET /api/posts?busca=). */
+  readonly busca = signal('');
+  /** Última lista completa (sem busca): o Mural de Avisos não muda enquanto a pessoa pesquisa. */
+  private readonly postsSemFiltro = signal<Post[]>([]);
+
   readonly avisos = computed<AvisoMural[]>(() =>
-    this.posts()
+    this.postsSemFiltro()
       .filter((p) => p.autorRole === 'PASTOR' && /#aviso\b/i.test(p.conteudo))
       .slice(0, 3)
       .map((p) => ({
@@ -69,15 +74,29 @@ export class CommunityService {
     });
   }
 
+  /** Pesquisa posts pelo texto (Formulário de Filtro). Termo vazio volta a mostrar todos. */
+  buscar(termo: string): void {
+    const t = termo.trim();
+    if (t === this.busca()) return;
+    this.busca.set(t);
+    this.carregandoPosts.set(true);
+    this.loadPosts();
+  }
+
   loadPosts(): void {
+    const termo = this.busca();
+    const url = termo ? `/api/posts?busca=${encodeURIComponent(termo)}` : '/api/posts';
     this.http
-      .get<Post[]>('/api/posts', { withCredentials: true })
+      .get<Post[]>(url, { withCredentials: true })
       .pipe(catchError(() => of(null)))
       .subscribe((remotePosts) => {
+        // Ignora respostas de uma busca antiga (a pessoa continuou digitando).
+        if (termo !== this.busca()) return;
         this.carregandoPosts.set(false);
         if (remotePosts) {
           const salvos = this.savedIds();
           this.posts.set(remotePosts.map((p) => ({ ...p, saved: salvos.includes(p.idPost) })));
+          if (!termo) this.postsSemFiltro.set(this.posts());
           this.comentariosCarregados.clear();
           this.comentarios.set([]);
         }
@@ -121,7 +140,7 @@ export class CommunityService {
       conteudo: conteudo.trim(),
       imagemUrl: imagemUrl ?? null,
       tags,
-      reacoes: { curtir: 0, amem: 0, userReacted: null },
+      reacoes: { curtir: 0, amem: 0, orando: 0, userReacted: null },
       comentariosCount: 0,
       saved: false,
     };
@@ -148,17 +167,20 @@ export class CommunityService {
         const prev = post.reacoes.userReacted;
         let curtir = post.reacoes.curtir;
         let amem = post.reacoes.amem;
+        let orando = post.reacoes.orando ?? 0;
 
         if (prev === 'CURTIR') curtir = Math.max(0, curtir - 1);
         if (prev === 'AMEM') amem = Math.max(0, amem - 1);
+        if (prev === 'ORANDO') orando = Math.max(0, orando - 1);
 
         const next: ReacaoTipo | null = prev === tipo ? null : tipo;
         if (next === 'CURTIR') curtir += 1;
         if (next === 'AMEM') amem += 1;
+        if (next === 'ORANDO') orando += 1;
 
         return {
           ...post,
-          reacoes: { curtir, amem, userReacted: next },
+          reacoes: { curtir, amem, orando, userReacted: next },
         };
       }),
     );

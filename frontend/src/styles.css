@@ -1,10 +1,75 @@
 @import "tailwindcss";
+/* Fonte da marca "BASE!" (empacotada junto com o site, sem depender do Google Fonts). */
+@import "@fontsource/fraunces/latin-900.css";
+
+/* Modo escuro: a classe "dark" fica no <html> (ThemeService + script do index.html). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-fundo: #fafafa; /* fundo da página */
+  --color-papel: #faf9f6; /* fundo "de papel" do leitor e do login */
+  --font-marca: 'Fraunces', Georgia, 'Times New Roman', serif;
+}
 
 @layer base {
   body {
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background-color: #FAFAFA;
-    color: #0F172A;
+    background-color: var(--color-fundo);
+    color: var(--color-slate-900);
     -webkit-font-smoothing: antialiased;
   }
+}
+
+/*
+ * Tema escuro: as telas usam a paleta "slate" do Tailwind (fundo branco, texto slate-900...).
+ * No modo escuro a paleta é trocada aqui, de uma vez só: o branco vira o cinza-azulado dos cartões
+ * e os tons de slate se invertem (texto claro, bordas escuras). Os tons de aviso (rose/emerald/amber)
+ * também ganham versões escuras para não "acenderem" na tela.
+ */
+html.dark {
+  color-scheme: dark;
+  --color-fundo: oklch(0.165 0.02 264);
+  --color-papel: oklch(0.185 0.012 75);
+  --color-white: oklch(0.215 0.022 262);
+  --color-slate-50: oklch(0.245 0.024 262);
+  --color-slate-100: oklch(0.28 0.026 260);
+  --color-slate-200: oklch(0.325 0.028 258);
+  --color-slate-300: oklch(0.41 0.03 257);
+  --color-slate-400: oklch(0.6 0.03 257);
+  --color-slate-500: oklch(0.69 0.026 256);
+  --color-slate-600: oklch(0.77 0.02 255);
+  --color-slate-700: oklch(0.85 0.015 254);
+  --color-slate-800: oklch(0.9 0.012 252);
+  --color-slate-900: oklch(0.955 0.007 250);
+  --color-slate-950: oklch(0.98 0.004 248);
+  --color-rose-50: oklch(0.27 0.06 15);
+  --color-rose-200: oklch(0.42 0.1 15);
+  --color-rose-600: oklch(0.73 0.15 15);
+  --color-rose-700: oklch(0.81 0.11 15);
+  --color-emerald-50: oklch(0.27 0.045 165);
+  --color-emerald-200: oklch(0.42 0.07 165);
+  --color-emerald-700: oklch(0.82 0.12 165);
+  --color-amber-50: oklch(0.27 0.04 80);
+  --color-amber-200: oklch(0.43 0.07 80);
+  --color-amber-300: oklch(0.52 0.09 80);
+  --color-amber-400: oklch(0.72 0.13 80);
+  --color-amber-800: oklch(0.83 0.1 85);
+  --color-amber-900: oklch(0.89 0.08 85);
+  --color-indigo-600: oklch(0.75 0.12 277);
+}
+
+/* Áreas que mantêm as cores originais nos dois modos (capas dos livros, painel do login). */
+.tema-claro {
+  --color-white: #fff;
+  --color-slate-50: oklch(98.4% 0.003 247.858);
+  --color-slate-100: oklch(96.8% 0.007 247.896);
+  --color-slate-200: oklch(92.9% 0.013 255.508);
+  --color-slate-300: oklch(86.9% 0.022 252.894);
+  --color-slate-400: oklch(70.4% 0.04 256.788);
+  --color-slate-500: oklch(55.4% 0.046 257.417);
+  --color-slate-600: oklch(44.6% 0.043 257.281);
+  --color-slate-700: oklch(37.2% 0.044 257.287);
+  --color-slate-800: oklch(27.9% 0.041 260.031);
+  --color-slate-900: oklch(20.8% 0.042 265.755);
+  --color-slate-950: oklch(12.9% 0.042 264.695);
 }

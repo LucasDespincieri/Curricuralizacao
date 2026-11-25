@@ -7,10 +7,14 @@ import {
   LucideLogIn,
   LucideLogOut,
   LucidePenLine,
-  LucideSparkles,
+  LucideMoon,
+  LucideShieldCheck,
+  LucideSun,
   LucideUser,
 } from '@lucide/angular';
 import { AuthService } from '../../services/auth.service';
+import { ThemeService } from '../../services/theme.service';
+import { IconeBibliaComponent } from '../marca/icone-biblia.component';
 import { LoginPromptService } from '../../services/login-prompt.service';
 
 @Component({
@@ -24,9 +28,12 @@ import { LoginPromptService } from '../../services/login-prompt.service';
     LucideBookmark,
     LucideUser,
     LucidePenLine,
+    LucideShieldCheck,
     LucideLogIn,
     LucideLogOut,
-    LucideSparkles,
+    LucideSun,
+    LucideMoon,
+    IconeBibliaComponent,
   ],
   template: `
     <aside
@@ -34,18 +41,13 @@ import { LoginPromptService } from '../../services/login-prompt.service';
     >
       <div>
         <!-- Logo -->
-        <a routerLink="/inicio" class="mb-8 flex items-center gap-3 px-2">
+        <a routerLink="/inicio" class="mb-8 flex items-center gap-3 px-2" aria-label="BASE! — página inicial">
           <div
-            class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800 text-white shadow-sm"
+            class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-800 text-white shadow-sm"
           >
-            <svg lucideSparkles [size]="20"></svg>
+            <app-icone-biblia [size]="24" />
           </div>
-          <div class="leading-tight">
-            <div class="text-base font-bold tracking-tight text-slate-900">Comunidade</div>
-            <div class="text-[11px] font-medium tracking-widest text-slate-500 uppercase">
-              DA FÉ · BASE!
-            </div>
-          </div>
+          <span class="font-marca text-[2.6rem] leading-none font-black tracking-tight text-slate-900">BASE!</span>
         </a>
 
         <!-- Navegação Principal (4 rotas do MVP) -->
@@ -85,6 +87,17 @@ import { LoginPromptService } from '../../services/login-prompt.service';
             <svg lucideUser [size]="18"></svg>
             <span>Perfil</span>
           </a>
+
+          @if (auth.currentUser()?.role === 'PASTOR') {
+            <a
+              routerLink="/admin"
+              routerLinkActive="bg-slate-100 text-slate-900 font-semibold"
+              class="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+            >
+              <svg lucideShieldCheck [size]="18"></svg>
+              <span>Administração</span>
+            </a>
+          }
         </nav>
 
         <!-- Botão de ação primária -->
@@ -98,10 +111,43 @@ import { LoginPromptService } from '../../services/login-prompt.service';
         </button>
       </div>
 
+      <div>
+      <!-- Tema: claro ou escuro (fica salvo no navegador) -->
+      <div class="mt-6 grid grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Tema do site">
+        <button
+          type="button"
+          (click)="tema.definir(false)"
+          [attr.aria-pressed]="!tema.escuro()"
+          class="flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition"
+          [class.bg-white]="!tema.escuro()"
+          [class.text-slate-900]="!tema.escuro()"
+          [class.shadow-sm]="!tema.escuro()"
+          [class.text-slate-500]="tema.escuro()"
+          [class.hover:text-slate-800]="tema.escuro()"
+        >
+          <svg lucideSun [size]="14"></svg>
+          <span>Claro</span>
+        </button>
+        <button
+          type="button"
+          (click)="tema.definir(true)"
+          [attr.aria-pressed]="tema.escuro()"
+          class="flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition"
+          [class.bg-white]="tema.escuro()"
+          [class.text-slate-900]="tema.escuro()"
+          [class.shadow-sm]="tema.escuro()"
+          [class.text-slate-500]="!tema.escuro()"
+          [class.hover:text-slate-800]="!tema.escuro()"
+        >
+          <svg lucideMoon [size]="14"></svg>
+          <span>Escuro</span>
+        </button>
+      </div>
+
       <!-- Rodapé: Mini-card do usuário -->
       @if (auth.currentUser(); as user) {
         <div
-          class="mt-6 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-2.5"
+          class="mt-3 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-2.5"
         >
           <a routerLink="/perfil" class="flex min-w-0 items-center gap-2.5">
             <div
@@ -127,7 +173,7 @@ import { LoginPromptService } from '../../services/login-prompt.service';
         </div>
       } @else {
         <!-- Visitante sem login: convite para entrar -->
-        <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+        <div class="mt-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
           <p class="text-sm font-semibold text-slate-900">Faça parte da comunidade</p>
           <p class="mt-0.5 text-xs leading-relaxed text-slate-500">
             Entre para publicar, comentar e salvar livros na sua estante.
@@ -148,11 +194,13 @@ import { LoginPromptService } from '../../services/login-prompt.service';
           </a>
         </div>
       }
+      </div>
     </aside>
   `,
 })
 export class SidebarComponent {
   protected readonly auth = inject(AuthService);
+  protected readonly tema = inject(ThemeService);
   private readonly router = inject(Router);
   private readonly loginPrompt = inject(LoginPromptService);
   readonly newPostClicked = output<void>();

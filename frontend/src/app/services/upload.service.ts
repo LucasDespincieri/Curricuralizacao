@@ -35,6 +35,13 @@ export class UploadService {
     return null;
   }
 
+  /** Apaga do Cloudinary uma imagem enviada que não chegou a ser usada em nenhum post. */
+  descartarImagem(url: string): void {
+    this.http
+      .request('DELETE', '/api/uploads/imagem', { body: { url }, withCredentials: true })
+      .subscribe({ error: () => undefined });
+  }
+
   /** Envia a imagem e devolve a URL pública (https) gerada pelo Cloudinary. */
   async enviarImagemPost(arquivo: File): Promise<string> {
     let assinatura: AssinaturaUpload;

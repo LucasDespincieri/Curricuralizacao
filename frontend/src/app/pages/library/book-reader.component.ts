@@ -28,7 +28,7 @@ import { BookService } from '../../services/book.service';
   ],
   template: `
     @if (book(); as livro) {
-      <div class="min-h-screen bg-[#FAF9F6]">
+      <div class="min-h-screen bg-papel">
         <!-- Barra Superior do Leitor -->
         <header
           class="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-6 py-3.5 backdrop-blur"
@@ -124,7 +124,7 @@ import { BookService } from '../../services/book.service';
           <!-- Texto Principal -->
           <article class="max-w-2xl">
             <p class="text-[11px] font-semibold tracking-widest text-amber-800/80 uppercase">
-              Capítulo 0{{ currentIndex() + 1 }} · {{ livro.tempoLeituraMin || 10 }} min de leitura
+              Capítulo 0{{ currentIndex() + 1 }} · {{ livro.tempoLeituraMin || 1 }} min de leitura
             </p>
             <h1 class="mt-2 text-3xl font-bold tracking-tight text-slate-900">
               {{ livro.titulo }}
@@ -233,7 +233,9 @@ import { BookService } from '../../services/book.service';
       </div>
     } @else {
       <div class="p-12 text-center">
-        <p class="text-sm text-slate-600">Livro não encontrado.</p>
+        <p class="text-sm text-slate-600">
+          {{ bookService.carregandoLivros() ? 'Carregando livro...' : 'Livro não encontrado.' }}
+        </p>
         <a
           routerLink="/biblioteca"
           class="mt-4 inline-block text-xs font-semibold text-slate-800 underline"

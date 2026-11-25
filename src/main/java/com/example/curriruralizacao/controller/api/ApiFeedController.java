@@ -11,6 +11,8 @@ import com.example.curriruralizacao.service.UsuarioService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
@@ -34,9 +36,11 @@ public class ApiFeedController {
 
     @GetMapping
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> listarPosts(Principal principal) {
+    public List<Map<String, Object>> listarPosts(@RequestParam(value = "busca", required = false) String busca,
+                                                 Principal principal) {
         Integer userId = principal != null ? usuarioService.buscarPorEmail(principal.getName()).getId() : null;
-        return postService.listarFeed().stream()
+        // Formulário de Filtro: com ?busca=..., só os posts cujo texto contém o termo.
+        return postService.listarFeedFiltrado(busca).stream()
                 .map(p -> ApiMapper.toPostDto(p, userId))
                 .toList();
     }
@@ -110,7 +114,11 @@ public class ApiFeedController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Não autenticado"));
         }
         Usuario user = usuarioService.buscarPorEmail(principal.getName());
-        String tipo = body.getOrDefault("tipo", "CURTIR");
+        // Reações aceitas. "ORANDO" usa a mesma coluna de texto (tipo) das outras: não muda o banco.
+        String tipo = body.getOrDefault("tipo", "CURTIR").trim().toUpperCase();
+        if (!java.util.List.of("CURTIR", "AMEM", "ORANDO").contains(tipo)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Tipo de reação inválido"));
+        }
         postService.alternarReacao(id, user, tipo);
         Post updated = postService.buscarPorId(id);
         return ResponseEntity.ok(ApiMapper.toPostDto(updated, user.getId()));
@@ -123,7 +131,18 @@ public class ApiFeedController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Não autenticado"));
         }
         Usuario user = usuarioService.buscarPorEmail(principal.getName());
+        String imagemUrl = postService.buscarPorId(id).getImagemUrl();
         postService.excluirPost(id, user);
+        // Só chega aqui se o usuário tinha permissão (excluirPost lança exceção caso contrário).
+        // A imagem é apagada no Cloudinary depois que a exclusão do post for gravada no banco.
+        if (imagemUrl != null) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    cloudinaryService.excluirImagem(imagemUrl);
+                }
+            });
+        }
         return ResponseEntity.ok(Map.of("deleted", true));
     }
 }

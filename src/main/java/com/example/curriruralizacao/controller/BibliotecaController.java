@@ -37,14 +37,10 @@ public class BibliotecaController {
     }
 
     // Endpoint GET /biblioteca: Exibe a lista completa de livros disponíveis para leitura comunitária.
-    // Suporta busca dinâmica de livros por título (?busca=...).
     @GetMapping("/biblioteca")
-    public String catalogo(@RequestParam(value = "busca", required = false) String busca,
-                           Model model,
-                           Principal principal) {
-        // Envia os livros filtrados ou todos ordenados pela data de publicação para o catálogo.
-        model.addAttribute("livros", livroService.filtrarLivros(busca));
-        model.addAttribute("termoBusca", busca != null ? busca : "");
+    public String catalogo(Model model, Principal principal) {
+        // Envia todos os livros ordenados pela data de publicação para o catálogo.
+        model.addAttribute("livros", livroService.listarTodosLivros());
 
         // Se o usuário estiver autenticado, identifica quais livros já estão salvos em sua biblioteca particular.
         if (principal != null) {

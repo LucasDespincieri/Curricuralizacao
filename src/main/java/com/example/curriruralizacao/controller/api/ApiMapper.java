@@ -22,7 +22,10 @@ public final class ApiMapper {
         loc.put("pais", "Brasil");
         loc.put("bairro", u.getBairro() != null ? u.getBairro() : "");
 
-        String username = (u.getNome() != null ? u.getNome() : "membro")
+        // Tira os acentos antes de limpar (antes "João" virava "joo").
+        String username = java.text.Normalizer
+                .normalize(u.getNome() != null ? u.getNome() : "membro", java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
                 .toLowerCase()
                 .replaceAll("[^a-z0-9]", "");
 
@@ -41,6 +44,7 @@ public final class ApiMapper {
     public static Map<String, Object> toPostDto(Post post, Integer currentUserId) {
         long curtir = post.getReacoes().stream().filter(r -> "CURTIR".equalsIgnoreCase(r.getTipo())).count();
         long amem = post.getReacoes().stream().filter(r -> "AMEM".equalsIgnoreCase(r.getTipo())).count();
+        long orando = post.getReacoes().stream().filter(r -> "ORANDO".equalsIgnoreCase(r.getTipo())).count();
         String userReacted = null;
         if (currentUserId != null) {
             userReacted = post.getReacoes().stream()
@@ -53,6 +57,7 @@ public final class ApiMapper {
         Map<String, Object> reacoes = new LinkedHashMap<>();
         reacoes.put("curtir", curtir);
         reacoes.put("amem", amem);
+        reacoes.put("orando", orando);
         reacoes.put("userReacted", userReacted);
 
         Map<String, Object> dto = new LinkedHashMap<>();
@@ -101,9 +106,17 @@ public final class ApiMapper {
         dto.put("autorNome", livro.getAutor().getNome());
         dto.put("autorRole", mapRole(livro.getAutor().getRole()));
         dto.put("titulo", livro.getTitulo());
+        dto.put("descricao", livro.getDescricao());
         dto.put("publicado", true);
         dto.put("secoes", secoes.size());
         dto.put("conteudoSecoes", secoes);
+        // ~200 palavras por minuto, no mínimo 1 minuto.
+        long palavras = capitulos == null ? 0 : capitulos.stream()
+                .map(Capitulo::getConteudo)
+                .filter(java.util.Objects::nonNull)
+                .mapToLong(t -> t.isBlank() ? 0 : t.trim().split("\\s+").length)
+                .sum();
+        dto.put("tempoLeituraMin", Math.max(1, (int) Math.ceil(palavras / 200.0)));
         dto.put("data_inicio", livro.getDataPublicacao() != null ? livro.getDataPublicacao().toLocalDate().toString() : "");
         return dto;
     }

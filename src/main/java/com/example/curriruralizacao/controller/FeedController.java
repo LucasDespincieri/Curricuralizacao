@@ -31,15 +31,11 @@ public class FeedController {
     }
 
     // Endpoint GET /feed: Carrega as publicações e formulários da página principal da rede social.
-    // Suporta busca e filtragem dinâmica de publicações por parâmetro de query (?busca=...).
     // Principal: Fornecido pelo Spring Security com os dados do usuário atualmente autenticado na sessão.
     @GetMapping
-    public String carregarFeed(@RequestParam(value = "busca", required = false) String busca,
-                               Model model,
-                               Principal principal) {
-        // Envia para a view a lista de posts filtrados ou geral em ordem decrescente de data.
-        model.addAttribute("posts", postService.listarFeedFiltrado(busca));
-        model.addAttribute("termoBusca", busca != null ? busca : "");
+    public String carregarFeed(Model model, Principal principal) {
+        // Envia para a view a lista de todos os posts com comentários e reações em ordem decrescente de data.
+        model.addAttribute("posts", postService.listarFeed());
 
         // Inicializa os DTOs de formulário nos atributos do modelo, caso não tenham sido preenchidos por redirecionamentos.
         if (!model.containsAttribute("novoPostForm")) {

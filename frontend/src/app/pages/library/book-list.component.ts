@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
@@ -10,6 +10,7 @@ import {
 import { AuthService } from '../../services/auth.service';
 import { LoginPromptService } from '../../services/login-prompt.service';
 import { BookService } from '../../services/book.service';
+import { Livro } from '../../models/community.models';
 
 @Component({
   selector: 'app-book-list',
@@ -57,7 +58,8 @@ import { BookService } from '../../services/book.service';
           ></svg>
           <input
             type="text"
-            [(ngModel)]="searchTerm"
+            [ngModel]="searchTerm()"
+            (ngModelChange)="aoBuscar($event)"
             placeholder="Buscar livros, estudos ou autores..."
             class="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-4 pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none"
           />
@@ -114,7 +116,7 @@ import { BookService } from '../../services/book.service';
           >
             <!-- Capa -->
             <div
-              class="relative flex h-36 items-end p-4"
+              class="tema-claro relative flex h-36 items-end p-4"
               [style.backgroundColor]="book.corCapa || '#2A4065'"
             >
               @if (book.tempoLeituraMin) {
@@ -190,12 +192,14 @@ import { BookService } from '../../services/book.service';
           </article>
         } @empty {
           <div class="col-span-full py-12 text-center text-sm text-slate-500">
-            @if (bookService.carregandoLivros()) {
-              Carregando livros...
+            @if (bookService.carregandoLivros() || buscando()) {
+              {{ buscando() ? 'Buscando...' : 'Carregando livros...' }}
             } @else if (bookService.livros().length === 0) {
               Nenhum livro publicado ainda.
-            } @else {
+            } @else if (searchTerm().trim()) {
               Nenhum livro encontrado para a busca atual.
+            } @else {
+              Nenhum livro nesta categoria ainda.
             }
           </div>
         }
@@ -203,7 +207,7 @@ import { BookService } from '../../services/book.service';
     </div>
   `,
 })
-export class BookListComponent {
+export class BookListComponent implements OnDestroy {
   protected readonly bookService = inject(BookService);
   private readonly auth = inject(AuthService);
   private readonly loginPrompt = inject(LoginPromptService);
@@ -211,18 +215,46 @@ export class BookListComponent {
   readonly searchTerm = signal('');
   readonly filterMode = signal<'ALL' | 'PASTOR' | 'COMUNIDADE'>('ALL');
 
-  readonly filteredBooks = computed(() => {
-    const query = this.searchTerm().trim().toLowerCase();
-    const mode = this.filterMode();
+  /** Resultado da busca no banco (null = sem busca, mostra todos os livros). */
+  readonly resultados = signal<Livro[] | null>(null);
+  readonly buscando = signal(false);
+  private buscaTimer: ReturnType<typeof setTimeout> | undefined;
+  private buscaAtual = 0;
 
-    return this.bookService.livros().filter((book) => {
+  /** Formulário de Filtro: a busca por título/autor roda no backend; as abas (Pastor/Comunidade) filtram o resultado. */
+  aoBuscar(termo: string): void {
+    this.searchTerm.set(termo);
+    clearTimeout(this.buscaTimer);
+    if (!termo.trim()) {
+      this.buscaAtual++;
+      this.resultados.set(null);
+      this.buscando.set(false);
+      return;
+    }
+    this.buscando.set(true);
+    this.buscaTimer = setTimeout(async () => {
+      const busca = ++this.buscaAtual;
+      try {
+        const lista = await this.bookService.buscarLivros(termo);
+        if (busca === this.buscaAtual) this.resultados.set(lista);
+      } catch {
+        if (busca === this.buscaAtual) this.resultados.set([]);
+      } finally {
+        if (busca === this.buscaAtual) this.buscando.set(false);
+      }
+    }, 350);
+  }
+
+  ngOnDestroy(): void {
+    clearTimeout(this.buscaTimer);
+  }
+
+  readonly filteredBooks = computed(() => {
+    const mode = this.filterMode();
+    return (this.resultados() ?? this.bookService.livros()).filter((book) => {
       if (mode === 'PASTOR' && book.autorRole !== 'PASTOR') return false;
       if (mode === 'COMUNIDADE' && book.autorRole !== 'MEMBRO') return false;
-      if (!query) return true;
-      return (
-        book.titulo.toLowerCase().includes(query) ||
-        book.autorNome.toLowerCase().includes(query)
-      );
+      return true;
     });
   });
 

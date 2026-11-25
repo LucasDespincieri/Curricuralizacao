@@ -113,6 +113,10 @@ public class PostService {
             ReacaoPost reacao = reacaoExistente.get();
             // Se clicou no mesmo tipo de reação que já havia dado (toggle), cancela a reação removendo-a.
             if (reacao.getTipo().equalsIgnoreCase(tipo)) {
+                // Remove também da lista do post: como Post.reacoes tem cascade ALL, se a reação
+                // continuar na lista o Hibernate "desfaz" o delete ao salvar, e a curtida nunca sai.
+                // Compara por ID: o equals() do ReacaoPost (Lombok sem campos incluídos) considera todas iguais.
+                post.getReacoes().removeIf(r -> r.getId() != null && r.getId().equals(reacao.getId()));
                 reacaoPostRepository.delete(reacao);
             } else {
                 // Caso contrário, altera o tipo da reação para a nova escolha (ex: de "CURTIR" para "AMEM").

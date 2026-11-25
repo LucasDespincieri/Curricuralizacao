@@ -1,6 +1,6 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { effect, inject, Injectable, signal, untracked } from '@angular/core';
-import { catchError, of } from 'rxjs';
+import { catchError, firstValueFrom, of } from 'rxjs';
 import { Capitulo, Grifo, ItemBiblioteca, Livro, Usuario } from '../models/community.models';
 import { AuthService } from './auth.service';
 
@@ -133,6 +133,36 @@ export class BookService {
       .subscribe();
   }
 
+  /** Formulário de Filtro da Biblioteca: busca no banco pelo título ou pelo autor (GET /api/livros?busca=). */
+  async buscarLivros(termo: string): Promise<Livro[]> {
+    return firstValueFrom(
+      this.http.get<Livro[]>(`/api/livros?busca=${encodeURIComponent(termo.trim())}`, { withCredentials: true }),
+    );
+  }
+
+  /** Exclui o livro (só o autor ou o Pastor). Tira da lista, da estante e dos grifos em memória. */
+  async excluirLivro(id: number): Promise<void> {
+    try {
+      await firstValueFrom(this.http.delete(`/api/livros/${id}`, { withCredentials: true }));
+    } catch (err) {
+      throw new Error(mensagemErroLivro(err));
+    }
+    this.livros.update((list) => list.filter((l) => l.idLivros !== id));
+    this.estante.update((list) => list.filter((i) => i.idLivros !== id));
+    this.grifos.update((list) => list.filter((g) => g.idLivro !== id));
+  }
+
+  /** Busca um livro na API (usado quando a lista ainda não carregou). */
+  async buscarLivro(id: number): Promise<Livro | null> {
+    const local = this.getLivroById(id);
+    if (local) return local;
+    try {
+      return await firstValueFrom(this.http.get<Livro>(`/api/livros/${id}`, { withCredentials: true }));
+    } catch {
+      return null;
+    }
+  }
+
   getLivroById(id: number): Livro | undefined {
     return this.livros().find((l) => l.idLivros === id);
   }
@@ -164,7 +194,12 @@ export class BookService {
     }
   }
 
-  saveLivro(
+  /**
+   * Cria ou atualiza um livro, sempre esperando o backend responder.
+   * Livro novo: devolve o ID real (o leitor abre por esse ID) e recarrega a estante,
+   * onde o backend já coloca o livro do autor.
+   */
+  async saveLivro(
     user: Usuario,
     payload: {
       idLivros?: number;
@@ -173,61 +208,58 @@ export class BookService {
       conteudoSecoes: Capitulo[];
       publicado?: boolean;
     },
-  ): Livro {
-    const secoes = payload.conteudoSecoes.length;
-    const palavras = payload.conteudoSecoes
-      .map((s) => s.texto.split(/\s+/).filter(Boolean).length)
-      .reduce((acc, n) => acc + n, 0);
-    const tempoLeituraMin = Math.max(3, Math.ceil(palavras / 160));
-
-    if (payload.idLivros) {
-      let updated!: Livro;
-      this.livros.update((list) =>
-        list.map((l) => {
-          if (l.idLivros !== payload.idLivros) return l;
-          updated = {
-            ...l,
-            titulo: payload.titulo.trim().slice(0, 200),
-            descricao: payload.descricao?.trim() || l.descricao,
-            conteudoSecoes: payload.conteudoSecoes,
-            secoes,
-            tempoLeituraMin,
-            publicado: payload.publicado ?? l.publicado,
-          };
-          return updated;
-        }),
-      );
-      return updated;
-    }
-
-    const novo: Livro = {
-      idLivros: Date.now(),
-      idUsuario: user.idUsuario,
-      autorNome: user.nome,
-      autorRole: user.role,
+  ): Promise<Livro> {
+    const corpo = {
       titulo: payload.titulo.trim().slice(0, 200),
-      descricao: payload.descricao?.trim() || 'Estudo compartilhado com a comunidade.',
-      tempoLeituraMin,
-      corCapa: '#2A4065',
-      publicado: payload.publicado ?? true,
-      secoes,
+      descricao: payload.descricao?.trim() ?? '',
       conteudoSecoes: payload.conteudoSecoes,
-      data_inicio: new Date().toISOString().split('T')[0],
     };
 
-    this.livros.update((list) => [novo, ...list]);
-    this.http
-      .post<Livro>(
-        '/api/livros',
-        { titulo: novo.titulo, conteudoSecoes: novo.conteudoSecoes },
-        { withCredentials: true },
-      )
-      .pipe(catchError(() => of(null)))
-      .subscribe((created) => {
-        if (created) {
-          this.livros.update((list) => list.map((l) => (l.idLivros === novo.idLivros ? created : l)));
-        }
-      });
-    return novo;
+    if (payload.idLivros) {
+      // Edição: PUT /api/livros/{id}. O backend só aceita se quem edita for o autor.
+      let atualizado: Livro;
+      try {
+        atualizado = await firstValueFrom(
+          this.http.put<Livro>(`/api/livros/${payload.idLivros}`, corpo, { withCredentials: true }),
+        );
+      } catch (err) {
+        throw new Error(mensagemErroLivro(err));
+      }
+      const livro: Livro = { ...atualizado, publicado: payload.publicado ?? atualizado.publicado };
+      this.livros.update((list) => list.map((l) => (l.idLivros === livro.idLivros ? livro : l)));
+      // Grifos de seções removidas somem no backend: limpa o cache para recarregar.
+      this.grifos.update((list) => list.filter((g) => g.idLivro !== livro.idLivros));
+      return livro;
+    }
+
+    let criado: Livro;
+    try {
+      criado = await firstValueFrom(
+        this.http.post<Livro>('/api/livros', corpo, { withCredentials: true }),
+      );
+    } catch (err) {
+      throw new Error(mensagemErroLivro(err));
+    }
+
+    const livro: Livro = { ...criado, publicado: payload.publicado ?? criado.publicado };
+    this.livros.update((list) => [livro, ...list.filter((l) => l.idLivros !== livro.idLivros)]);
+    this.loadEstante();
+    return livro;
   }
+}
+
+function mensagemErroLivro(err: unknown): string {
+  if (err instanceof HttpErrorResponse) {
+    if (err.status === 401) return 'Sua sessão expirou. Saia e entre de novo.';
+    if (err.status === 403) {
+      const msg = err.error && typeof err.error === 'object' ? err.error.error : null;
+      return typeof msg === 'string' && msg ? msg : 'Só o autor pode editar este livro.';
+    }
+    if ([0, 502, 503, 504].includes(err.status)) {
+      return 'O servidor está iniciando. Aguarde alguns segundos e tente de novo.';
+    }
+    const msg = err.error && typeof err.error === 'object' ? err.error.error : null;
+    if (typeof msg === 'string' && msg.trim()) return msg;
+  }
+  return 'Não foi possível salvar o livro.';
 }

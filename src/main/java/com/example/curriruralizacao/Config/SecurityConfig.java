@@ -60,8 +60,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         // Recursos estáticos (estilos CSS, scripts JS, imagens e ícone) liberados para qualquer visitante.
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
-                        // Telas públicas principais: página inicial, feed geral, tela de login, página de cadastro e painel de relatórios analíticos liberadas para todos.
-                        .requestMatchers("/", "/feed", "/login", "/cadastro", "/relatorios", "/relatorios/**").permitAll()
+                        // Telas públicas principais: página inicial, feed geral, tela de login e página de cadastro liberadas para todos.
+                        // (Os relatórios ficam em /api/relatorios e são só do Pastor — expõem e-mails dos membros.)
+                        .requestMatchers("/", "/feed", "/login", "/cadastro").permitAll()
                         // Endpoints REST públicos para o frontend Angular
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/posts/**", "/api/livros/**").permitAll()

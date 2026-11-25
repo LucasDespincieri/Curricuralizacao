@@ -10,6 +10,16 @@ import { BookService } from '../../services/book.service';
   standalone: true,
   imports: [ReactiveFormsModule, RouterLink, LucideArrowLeft, LucidePlus, LucideTrash2, LucideSave],
   template: `
+    @if (bloqueio(); as motivo) {
+      <div class="p-12 text-center">
+        <p class="text-sm text-slate-600">{{ motivo }}</p>
+        <a routerLink="/biblioteca" class="mt-3 inline-block text-xs font-semibold text-slate-800 underline">
+          Voltar para a Biblioteca
+        </a>
+      </div>
+    } @else if (carregando()) {
+      <div class="p-12 text-center text-sm text-slate-500">Carregando livro...</div>
+    } @else {
     <div class="px-6 py-6">
       <header class="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
@@ -26,10 +36,21 @@ import { BookService } from '../../services/book.service';
         </div>
 
         <div class="flex items-center gap-2.5">
+          @if (editingId()) {
+            <button
+              type="button"
+              (click)="excluirLivro()"
+              [disabled]="salvando()"
+              class="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-4 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-40"
+            >
+              <svg lucideTrash2 [size]="14"></svg>
+              <span>Excluir livro</span>
+            </button>
+          }
           <button
             type="button"
             (click)="onSubmit(false)"
-            [disabled]="form.invalid"
+            [disabled]="form.invalid || salvando()"
             class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-40"
           >
             <svg lucideSave [size]="14"></svg>
@@ -39,13 +60,19 @@ import { BookService } from '../../services/book.service';
           <button
             type="button"
             (click)="onSubmit(true)"
-            [disabled]="form.invalid"
+            [disabled]="form.invalid || salvando()"
             class="inline-flex items-center gap-1.5 rounded-xl bg-slate-800 px-4 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-slate-900 disabled:opacity-40"
           >
-            <span>Publicar</span>
+            <span>{{ salvando() ? 'Salvando...' : 'Publicar' }}</span>
           </button>
         </div>
       </header>
+
+      @if (erro()) {
+        <p class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-medium text-rose-700">
+          {{ erro() }}
+        </p>
+      }
 
       <form [formGroup]="form" class="space-y-6">
         <!-- Metadados do Livro -->
@@ -165,6 +192,7 @@ import { BookService } from '../../services/book.service';
         </div>
       </form>
     </div>
+    }
   `,
 })
 export class BookEditorComponent implements OnInit {
@@ -176,6 +204,8 @@ export class BookEditorComponent implements OnInit {
 
   readonly editingId = signal<number | null>(null);
   readonly activeSectionIndex = signal(0);
+  readonly salvando = signal(false);
+  readonly erro = signal<string | null>(null);
 
   readonly form = this.fb.nonNullable.group({
     titulo: ['', [Validators.required, Validators.maxLength(200)]],
@@ -187,25 +217,40 @@ export class BookEditorComponent implements OnInit {
     return this.form.controls.secoes;
   }
 
-  ngOnInit(): void {
+  /** Mensagem quando o livro não pode ser editado (não existe ou é de outra pessoa). */
+  readonly bloqueio = signal<string | null>(null);
+  readonly carregando = signal(false);
+
+  async ngOnInit(): Promise<void> {
     const idParam = this.route.snapshot.paramMap.get('id');
-    if (idParam) {
-      const id = Number(idParam);
-      const existing = this.bookService.getLivroById(id);
-      if (existing) {
-        this.editingId.set(existing.idLivros);
-        this.form.patchValue({
-          titulo: existing.titulo,
-          descricao: existing.descricao || '',
-        });
-        this.secoes.clear();
-        const sections = existing.conteudoSecoes?.length
-          ? existing.conteudoSecoes
-          : [{ ordem: 1, tituloSecao: 'Capítulo 1', texto: '' }];
-        for (const s of sections) {
-          this.secoes.push(this.createSectionGroup(s.tituloSecao, s.texto));
-        }
-      }
+    if (!idParam) return;
+
+    // Busca na API se a lista ainda não carregou (ex.: página aberta direto pela URL).
+    // Antes, nesse caso o formulário vinha vazio e salvar criava um livro novo.
+    this.carregando.set(true);
+    const existing = await this.bookService.buscarLivro(Number(idParam));
+    this.carregando.set(false);
+
+    if (!existing) {
+      this.bloqueio.set('Livro não encontrado.');
+      return;
+    }
+    if (existing.idUsuario !== this.auth.currentUser()?.idUsuario) {
+      this.bloqueio.set('Só o autor pode editar este livro.');
+      return;
+    }
+
+    this.editingId.set(existing.idLivros);
+    this.form.patchValue({
+      titulo: existing.titulo,
+      descricao: existing.descricao || '',
+    });
+    this.secoes.clear();
+    const sections = existing.conteudoSecoes?.length
+      ? existing.conteudoSecoes
+      : [{ ordem: 1, tituloSecao: 'Capítulo 1', texto: '' }];
+    for (const s of sections) {
+      this.secoes.push(this.createSectionGroup(s.tituloSecao, s.texto));
     }
   }
 
@@ -228,13 +273,16 @@ export class BookEditorComponent implements OnInit {
     this.activeSectionIndex.update((cur) => Math.max(0, Math.min(cur, this.secoes.length - 1)));
   }
 
-  onSubmit(publicar: boolean): void {
-    if (this.form.invalid) return;
+  async onSubmit(publicar: boolean): Promise<void> {
+    if (this.form.invalid || this.salvando()) return;
     const user = this.auth.currentUser();
     if (!user) return;
 
     const raw = this.form.getRawValue();
-    const saved = this.bookService.saveLivro(user, {
+    this.salvando.set(true);
+    this.erro.set(null);
+    try {
+      const saved = await this.bookService.saveLivro(user, {
       idLivros: this.editingId() ?? undefined,
       titulo: raw.titulo,
       descricao: raw.descricao,
@@ -244,8 +292,31 @@ export class BookEditorComponent implements OnInit {
         tituloSecao: s.tituloSecao,
         texto: s.texto,
       })),
-    });
+      });
+      // Abre o livro pelo ID devolvido pelo backend (antes usava um ID provisório e dava "não encontrado").
+      this.router.navigate(['/biblioteca/ler', saved.idLivros]);
+    } catch (e) {
+      this.erro.set(e instanceof Error ? e.message : 'Não foi possível salvar o livro.');
+    } finally {
+      this.salvando.set(false);
+    }
+  }
 
-    this.router.navigate(['/biblioteca/ler', saved.idLivros]);
+  async excluirLivro(): Promise<void> {
+    const id = this.editingId();
+    if (!id || this.salvando()) return;
+    if (!confirm('Excluir este livro? Os capítulos e os grifos dos leitores também serão apagados. Essa ação não pode ser desfeita.')) {
+      return;
+    }
+    this.salvando.set(true);
+    this.erro.set(null);
+    try {
+      await this.bookService.excluirLivro(id);
+      this.router.navigate(['/perfil']);
+    } catch (e) {
+      this.erro.set(e instanceof Error ? e.message : 'Não foi possível excluir o livro.');
+    } finally {
+      this.salvando.set(false);
+    }
   }
 }

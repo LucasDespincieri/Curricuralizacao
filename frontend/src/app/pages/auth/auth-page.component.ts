@@ -1,27 +1,25 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { LucideArrowLeft, LucideArrowRight, LucideBookOpen } from '@lucide/angular';
+import { LucideArrowLeft, LucideArrowRight } from '@lucide/angular';
 import { AuthService } from '../../services/auth.service';
+import { IconeBibliaComponent } from '../../components/marca/icone-biblia.component';
 
 @Component({
   selector: 'app-auth-page',
   standalone: true,
-  imports: [FormsModule, RouterLink, LucideBookOpen, LucideArrowRight, LucideArrowLeft],
+  imports: [FormsModule, RouterLink, LucideArrowRight, LucideArrowLeft, IconeBibliaComponent],
   template: `
     <div class="grid min-h-screen lg:grid-cols-2">
       <!-- Lado Esquerdo: Boas-vindas -->
       <section
-        class="relative hidden flex-col justify-between bg-slate-900 p-10 text-white lg:flex"
+        class="tema-claro relative hidden flex-col justify-between bg-slate-900 p-10 text-white lg:flex"
       >
         <div class="flex items-center gap-3">
-          <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
-            <svg lucideBookOpen [size]="20"></svg>
+          <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
+            <app-icone-biblia [size]="24" />
           </div>
-          <div>
-            <p class="text-base font-bold leading-tight">Comunidade</p>
-            <p class="text-[11px] tracking-widest text-slate-300 uppercase">DA FÉ · BASE!</p>
-          </div>
+          <p class="font-marca text-[2.6rem] leading-none font-black tracking-tight">BASE!</p>
         </div>
 
         <div class="max-w-lg">
@@ -41,7 +39,7 @@ import { AuthService } from '../../services/auth.service';
       </section>
 
       <!-- Lado Direito: Formulário -->
-      <section class="flex items-center justify-center bg-[#FAF9F6] px-6 py-12">
+      <section class="flex items-center justify-center bg-papel px-6 py-12">
         <div class="w-full max-w-md">
           <a
             routerLink="/inicio"

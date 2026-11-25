@@ -110,44 +110,24 @@ public class LivroService {
     @Transactional(readOnly = true)
     public List<Livro> filtrarLivros(String busca) {
         if (busca != null && !busca.trim().isEmpty()) {
-            return livroRepository.findByTituloContainingIgnoreCaseOrderByDataPublicacaoDesc(busca.trim());
+            return livroRepository.buscarPorTituloOuAutor(busca.trim());
         }
         return listarTodosLivros();
     }
 
-    // Operação Update do CRUD de Livro: permite ao Pastor editar os dados de uma obra cadastrada.
+    // Exclui um livro a pedido do autor (ou do Pastor, para moderação), via API.
+    // Antes de apagar, tira o livro da estante de todos os membros (tabela tb_biblioteca_usuario),
+    // senão o banco recusa a exclusão. Capítulos e grifos saem junto pelo cascade do Livro.
     @Transactional
-    public Livro atualizarLivro(Long livroId, com.example.curriruralizacao.DTO.EdicaoLivroForm form, Usuario pastor) {
-        validarPermissaoPastor(pastor);
+    public void excluirLivroPeloAutor(Long livroId, Usuario usuario) {
         Livro livro = buscarLivroPorId(livroId);
-        livro.setTitulo(form.getTitulo().trim());
-        return livroRepository.save(livro);
-    }
-
-    // Busca um capítulo específico diretamente por seu ID primário
-    @Transactional(readOnly = true)
-    public Capitulo buscarCapituloPorId(Long capituloId) {
-        return capituloRepository.findById(capituloId)
-                .orElseThrow(() -> new IllegalArgumentException("Capítulo não encontrado para o ID: " + capituloId));
-    }
-
-    // Operação Update do CRUD de Capítulo: permite atualizar título, ordem e conteúdo de um capítulo existente.
-    @Transactional
-    public Capitulo atualizarCapitulo(Long capituloId, com.example.curriruralizacao.DTO.EdicaoCapituloForm form, Usuario pastor) {
-        validarPermissaoPastor(pastor);
-        Capitulo capitulo = buscarCapituloPorId(capituloId);
-
-        // Se a ordem for alterada, valida se o novo número já está em uso por outro capítulo do mesmo livro
-        if (!capitulo.getOrdem().equals(form.getOrdem()) &&
-                capituloRepository.existsByLivroIdAndOrdem(capitulo.getLivro().getId(), form.getOrdem())) {
-            throw new IllegalArgumentException("Já existe um capítulo com o número de ordem " + form.getOrdem() + " cadastrado para este livro.");
+        boolean autor = livro.getAutor().getId().equals(usuario.getId());
+        boolean pastor = usuario.getRole() == Roles.ADM;
+        if (!autor && !pastor) {
+            throw new SecurityException("Só o autor (ou o Pastor) pode excluir este livro.");
         }
-
-        capitulo.setOrdem(form.getOrdem());
-        capitulo.setTitulo(form.getTitulo().trim());
-        capitulo.setConteudo(form.getConteudo().trim());
-
-        return capituloRepository.save(capitulo);
+        livroRepository.removerDeTodasAsEstantes(livroId);
+        livroRepository.delete(livro);
     }
 
     // Método auxiliar privado para validar se o usuário solicitante possui o papel de Administrador/Pastor.
@@ -156,4 +136,4 @@ public class LivroService {
             throw new SecurityException("Regra de Negócio (RN03): Apenas perfis com papel ADMIN (Pastor) têm permissão de criar, editar ou excluir Livros e Capítulos.");
         }
     }
-}
+}

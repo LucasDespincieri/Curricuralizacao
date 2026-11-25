@@ -11,7 +11,7 @@ import { LoginPromptService } from '../../services/login-prompt.service';
   template: `
     @if (prompt.aberto()) {
       <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
         (click)="prompt.fechar()"
       >
         <div

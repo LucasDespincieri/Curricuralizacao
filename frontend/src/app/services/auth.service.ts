@@ -135,39 +135,32 @@ export class AuthService {
     return fallback;
   }
 
-  updateProfile(patch: Partial<Pick<Usuario, 'nome' | 'email' | 'nascimento'>> & {
-    bairro?: string;
-    cidade?: string;
-    uf?: string;
-  }): void {
-    const user = this.currentUser();
-    if (!user) return;
-
-    this.http
+  /** Salva nome, bairro, cidade e UF. O e-mail é o login e não pode ser alterado. */
+  updateProfile(patch: { nome?: string; bairro?: string; cidade?: string; uf?: string }): Observable<AuthResult> {
+    if (!this.currentUser()) return of({ ok: false, error: 'Não autenticado.' });
+    return this.http
       .put<Usuario>(
         '/api/auth/profile',
-        { nome: patch.nome, bairro: patch.bairro },
+        {
+          nome: patch.nome,
+          bairro: patch.bairro,
+          cidade: patch.cidade?.trim() ?? '',
+          uf: patch.uf?.trim().toUpperCase() ?? '',
+        },
         { withCredentials: true },
       )
-      .pipe(catchError(() => of(null)))
-      .subscribe((updated) => {
-        if (updated) {
+      .pipe(
+        map((updated) => {
           this.currentUser.set(updated);
-        }
-      });
-
-    this.currentUser.set({
-      ...user,
-      nome: patch.nome ?? user.nome,
-      email: patch.email ?? user.email,
-      nascimento: patch.nascimento ?? user.nascimento,
-      localizacao: {
-        ...user.localizacao,
-        bairro: patch.bairro ?? user.localizacao.bairro,
-        cidade: patch.cidade ?? user.localizacao.cidade,
-        uf: patch.uf ?? user.localizacao.uf,
-      },
-    });
+          return { ok: true };
+        }),
+        catchError((err: HttpErrorResponse) => {
+          if (this.isBackendOffline(err)) {
+            return of({ ok: false, offline: true, error: SERVIDOR_INDISPONIVEL });
+          }
+          return of({ ok: false, error: this.extractError(err, 'Não foi possível salvar o perfil.') });
+        }),
+      );
   }
 
   logout(): void {

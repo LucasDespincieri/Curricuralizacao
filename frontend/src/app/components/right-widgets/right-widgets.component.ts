@@ -52,7 +52,7 @@ import { CommunityService } from '../../services/community.service';
           </div>
 
           <div
-            class="mb-4 flex h-28 items-end rounded-xl p-3.5 text-white"
+            class="tema-claro mb-4 flex h-28 items-end rounded-xl p-3.5 text-white"
             [style.backgroundColor]="book.corCapa || '#2A4065'"
           >
             <div class="rounded-md bg-[#E3D3B7] px-2.5 py-2 text-[10px] font-bold tracking-tight text-slate-900 shadow-sm">
