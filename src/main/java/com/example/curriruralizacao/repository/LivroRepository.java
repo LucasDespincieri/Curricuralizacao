@@ -15,4 +15,8 @@ public interface LivroRepository extends JpaRepository<Livro, Long> {
     // Query Method derivado: retorna todas as obras cadastradas na biblioteca em ordem cronológica decrescente de publicação.
     // SQL gerado: SELECT * FROM tb_livro ORDER BY data_publicacao DESC
     List<Livro> findAllByOrderByDataPublicacaoDesc();
+
+    // Query Method derivado para filtragem com busca dinâmica por título (Formulário de Filtro do CRUD):
+    // SQL gerado: SELECT * FROM tb_livro WHERE UPPER(titulo) LIKE UPPER('%' + :titulo + '%') ORDER BY data_publicacao DESC
+    List<Livro> findByTituloContainingIgnoreCaseOrderByDataPublicacaoDesc(String titulo);
 }

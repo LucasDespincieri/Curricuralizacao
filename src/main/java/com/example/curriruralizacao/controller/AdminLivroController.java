@@ -1,5 +1,7 @@
 package com.example.curriruralizacao.controller;
 
+import com.example.curriruralizacao.DTO.EdicaoCapituloForm;
+import com.example.curriruralizacao.DTO.EdicaoLivroForm;
 import com.example.curriruralizacao.DTO.NovoCapituloForm;
 import com.example.curriruralizacao.DTO.NovoLivroForm;
 import com.example.curriruralizacao.model.Livro;
@@ -108,6 +110,85 @@ public class AdminLivroController {
         Usuario pastor = usuarioService.buscarPorEmail(principal.getName());
         livroService.excluirLivro(id, pastor);
         redirectAttributes.addFlashAttribute("alertaSucesso", "Livro e seus capítulos foram removidos com sucesso.");
-        return "redirect:/biblioteca";
+        return "redirect:/admin/livros";
+    }
+
+    // Endpoint GET /admin/livros: Gera a lista de livros em formato de Tabela com formulário de filtro (REQUISITOS: Geração de Dados em Tabelas + Formulário de Filtro)
+    @GetMapping("/livros")
+    public String listarLivrosTabela(@RequestParam(value = "busca", required = false) String busca, Model model) {
+        model.addAttribute("livros", livroService.filtrarLivros(busca));
+        model.addAttribute("termoBusca", busca != null ? busca : "");
+        return "admin/livros-tabela";
+    }
+
+    // Endpoint GET /admin/livros/{id}/editar: Tela de edição de um livro existente (Operação Update do CRUD)
+    @GetMapping("/livros/{id}/editar")
+    public String telaEditarLivro(@PathVariable("id") Long id, Model model) {
+        Livro livro = livroService.buscarLivroPorId(id);
+        if (!model.containsAttribute("edicaoLivroForm")) {
+            model.addAttribute("edicaoLivroForm", new EdicaoLivroForm(livro.getId(), livro.getTitulo()));
+        }
+        model.addAttribute("livro", livro);
+        return "admin/livro-editar";
+    }
+
+    // Endpoint POST /admin/livros/{id}/editar: Processa a atualização dos dados do livro (Operação Update do CRUD)
+    @PostMapping("/livros/{id}/editar")
+    public String salvarEdicaoLivro(@PathVariable("id") Long id,
+                                    @Valid @ModelAttribute("edicaoLivroForm") EdicaoLivroForm form,
+                                    BindingResult bindingResult,
+                                    Principal principal,
+                                    Model model,
+                                    RedirectAttributes redirectAttributes) {
+        if (bindingResult.hasErrors()) {
+            model.addAttribute("livro", livroService.buscarLivroPorId(id));
+            return "admin/livro-editar";
+        }
+        Usuario pastor = usuarioService.buscarPorEmail(principal.getName());
+        livroService.atualizarLivro(id, form, pastor);
+        redirectAttributes.addFlashAttribute("alertaSucesso", "Livro atualizado com sucesso!");
+        return "redirect:/admin/livros";
+    }
+
+    // Endpoint GET /admin/livros/{livroId}/capitulos/{capituloId}/editar: Tela de edição de capítulo (Operação Update do CRUD)
+    @GetMapping("/livros/{livroId}/capitulos/{capituloId}/editar")
+    public String telaEditarCapitulo(@PathVariable("livroId") Long livroId,
+                                     @PathVariable("capituloId") Long capituloId,
+                                     Model model) {
+        Livro livro = livroService.buscarLivroPorId(livroId);
+        com.example.curriruralizacao.model.Capitulo capitulo = livroService.buscarCapituloPorId(capituloId);
+        if (!model.containsAttribute("edicaoCapituloForm")) {
+            model.addAttribute("edicaoCapituloForm", new EdicaoCapituloForm(capitulo.getId(), capitulo.getOrdem(), capitulo.getTitulo(), capitulo.getConteudo()));
+        }
+        model.addAttribute("livro", livro);
+        model.addAttribute("capitulo", capitulo);
+        return "admin/capitulo-editar";
+    }
+
+    // Endpoint POST /admin/livros/{livroId}/capitulos/{capituloId}/editar: Processa a edição de capítulo (Operação Update do CRUD)
+    @PostMapping("/livros/{livroId}/capitulos/{capituloId}/editar")
+    public String salvarEdicaoCapitulo(@PathVariable("livroId") Long livroId,
+                                       @PathVariable("capituloId") Long capituloId,
+                                       @Valid @ModelAttribute("edicaoCapituloForm") EdicaoCapituloForm form,
+                                       BindingResult bindingResult,
+                                       Principal principal,
+                                       Model model,
+                                       RedirectAttributes redirectAttributes) {
+        if (bindingResult.hasErrors()) {
+            model.addAttribute("livro", livroService.buscarLivroPorId(livroId));
+            model.addAttribute("capitulo", livroService.buscarCapituloPorId(capituloId));
+            return "admin/capitulo-editar";
+        }
+        Usuario pastor = usuarioService.buscarPorEmail(principal.getName());
+        try {
+            livroService.atualizarCapitulo(capituloId, form, pastor);
+            redirectAttributes.addFlashAttribute("alertaSucesso", "Capítulo atualizado com sucesso!");
+            return "redirect:/livros/" + livroId + "/ler?capitulo=" + form.getOrdem();
+        } catch (IllegalArgumentException ex) {
+            model.addAttribute("livro", livroService.buscarLivroPorId(livroId));
+            model.addAttribute("capitulo", livroService.buscarCapituloPorId(capituloId));
+            bindingResult.rejectValue("ordem", "ordem.duplicada", ex.getMessage());
+            return "admin/capitulo-editar";
+        }
     }
 }

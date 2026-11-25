@@ -39,6 +39,15 @@ public class PostService {
         return postRepository.findAllByOrderByDataCriacaoDesc();
     }
 
+    // Busca e filtra publicações do feed pelo conteúdo da postagem (Formulário de Filtro):
+    @Transactional(readOnly = true)
+    public List<Post> listarFeedFiltrado(String busca) {
+        if (busca != null && !busca.trim().isEmpty()) {
+            return postRepository.findByConteudoContainingIgnoreCaseOrderByDataCriacaoDesc(busca.trim());
+        }
+        return listarFeed();
+    }
+
     // Busca uma postagem específica pelo seu identificador primário (ID).
     @Transactional(readOnly = true)
     public Post buscarPorId(Long id) {
