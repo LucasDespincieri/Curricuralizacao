@@ -95,7 +95,7 @@ public class CidadeService {
         cidadeRepository.buscarPorNomeEUf(nome, uf)
                 .filter(existente -> !existente.getId().equals(idAtual))
                 .ifPresent(existente -> {
-                    throw new IllegalStateException("A cidade " + nome + "/" + uf.getUF() + " já está cadastrada.");
+                    throw new IllegalStateException("A cidade " + existente.getDescricao() + "/" + uf.getUF() + " já está cadastrada.");
                 });
     }
 }

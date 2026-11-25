@@ -562,7 +562,7 @@ type Aba = 'relatorios' | 'cidades' | 'membros';
                             {{ m.papel === 'PASTOR' ? 'Pastor' : 'Membro' }}
                           </span>
                         </td>
-                        <td class="px-3 py-2.5 text-slate-500">{{ formatarData(m.membroDesde) }}</td>
+                        <td class="px-3 py-2.5 text-slate-500" [title]="m.membroDesde ? '' : 'Conta criada antes de o site registrar a data de cadastro'">{{ formatarData(m.membroDesde) }}</td>
                         <td class="px-5 py-2.5 text-right whitespace-nowrap">
                           <button type="button" (click)="iniciarEdicaoMembro(m)" [attr.aria-label]="'Editar ' + m.nome" title="Editar"
                             class="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900">

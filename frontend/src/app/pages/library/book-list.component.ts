@@ -105,7 +105,7 @@ import { Livro } from '../../models/community.models';
       <!-- Subtítulo da seção -->
       <div class="mt-7 mb-4 flex items-center justify-between">
         <h2 class="text-base font-bold text-slate-900">Explorar leituras</h2>
-        <span class="text-xs text-slate-400">{{ filteredBooks().length }} títulos</span>
+        <span class="text-xs text-slate-400">{{ filteredBooks().length }} {{ filteredBooks().length === 1 ? 'título' : 'títulos' }}</span>
       </div>
 
       <!-- Grid de Livros -->

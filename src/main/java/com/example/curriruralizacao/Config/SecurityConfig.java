@@ -1,6 +1,7 @@
 package com.example.curriruralizacao.Config;
 
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -9,9 +10,11 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -38,6 +41,23 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
+    // "Lembrar de mim": depois do login, o navegador recebe o cookie "base_lembrar" (assinado, válido por 30 dias).
+    // Assim a pessoa continua logada mesmo quando o servidor reinicia (deploy ou "sono" do plano grátis do Render),
+    // que apaga as sessões guardadas em memória. Não usa tabela no banco: a assinatura é feita com a chave abaixo
+    // e com o hash da senha do usuário (trocar a senha invalida os cookies antigos).
+    // A chave vem da variável de ambiente REMEMBER_ME_KEY (configure no Render).
+    @Bean
+    public TokenBasedRememberMeServices rememberMeServices(
+            UserDetailsService userDetailsService,
+            @Value("${REMEMBER_ME_KEY:base-curricularizacao-fema-lembrar-de-mim}") String chave) {
+        TokenBasedRememberMeServices services = new TokenBasedRememberMeServices(
+                chave, userDetailsService, TokenBasedRememberMeServices.RememberMeTokenAlgorithm.SHA256);
+        services.setAlwaysRemember(true);
+        services.setCookieName("base_lembrar");
+        services.setTokenValiditySeconds(60 * 60 * 24 * 30);
+        return services;
+    }
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
@@ -52,8 +72,10 @@ public class SecurityConfig {
 
     // Configura a cadeia de filtros de segurança (Security Filter Chain) da aplicação HTTP.
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, TokenBasedRememberMeServices rememberMeServices) throws Exception {
         http
+                // Reconhece o cookie "base_lembrar" quando a sessão não existe mais (ver rememberMeServices acima).
+                .rememberMe(remember -> remember.rememberMeServices(rememberMeServices))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
                 // Configuração das regras de autorização de requisições HTTP:
@@ -101,7 +123,7 @@ public class SecurityConfig {
                         // Invalida a sessão HTTP no servidor para revogar o acesso imediatamente.
                         .invalidateHttpSession(true)
                         // Remove o cookie de sessão 'JSESSIONID' do navegador do usuário.
-                        .deleteCookies("JSESSIONID")
+                        .deleteCookies("JSESSIONID", "base_lembrar")
                         // Permite que qualquer usuário acione o logout.
                         .permitAll()
                 );

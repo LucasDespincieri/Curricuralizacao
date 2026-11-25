@@ -43,7 +43,7 @@ public class PostService {
     @Transactional(readOnly = true)
     public List<Post> listarFeedFiltrado(String busca) {
         if (busca != null && !busca.trim().isEmpty()) {
-            return postRepository.findByConteudoContainingIgnoreCaseOrderByDataCriacaoDesc(busca.trim());
+            return postRepository.buscarNoFeed(busca.trim());
         }
         return listarFeed();
     }

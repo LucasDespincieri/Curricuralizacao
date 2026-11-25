@@ -6,6 +6,7 @@ import com.example.curriruralizacao.repository.UsuarioRepository;
 import com.example.curriruralizacao.service.LocalizacaoService;
 import com.example.curriruralizacao.service.UsuarioService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +15,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,15 +32,18 @@ public class ApiAuthController {
     private final UsuarioRepository usuarioRepository;
 
     private final LocalizacaoService localizacaoService;
+    private final TokenBasedRememberMeServices rememberMeServices;
 
     public ApiAuthController(AuthenticationManager authenticationManager,
                              UsuarioService usuarioService,
                              UsuarioRepository usuarioRepository,
-                             LocalizacaoService localizacaoService) {
+                             LocalizacaoService localizacaoService,
+                             TokenBasedRememberMeServices rememberMeServices) {
         this.authenticationManager = authenticationManager;
         this.usuarioService = usuarioService;
         this.usuarioRepository = usuarioRepository;
         this.localizacaoService = localizacaoService;
+        this.rememberMeServices = rememberMeServices;
     }
 
     @GetMapping("/me")
@@ -51,12 +56,12 @@ public class ApiAuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> body, HttpServletRequest request) {
+    public ResponseEntity<?> login(@RequestBody Map<String, String> body, HttpServletRequest request, HttpServletResponse response) {
         String email = body.getOrDefault("email", "").trim().toLowerCase();
         String senha = body.getOrDefault("senha", "");
 
         try {
-            authenticateSession(email, senha, request);
+            authenticateSession(email, senha, request, response);
             Usuario user = usuarioService.buscarPorEmail(email);
             return ResponseEntity.ok(ApiMapper.toUsuarioDto(user));
         } catch (Exception ex) {
@@ -66,7 +71,7 @@ public class ApiAuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody Map<String, String> body, HttpServletRequest request) {
+    public ResponseEntity<?> register(@RequestBody Map<String, String> body, HttpServletRequest request, HttpServletResponse response) {
         String nome = body.getOrDefault("nome", "").trim();
         String email = body.getOrDefault("email", "").trim().toLowerCase();
         String senha = body.getOrDefault("senha", "");
@@ -92,14 +97,14 @@ public class ApiAuthController {
                 user.setDataNascimento(LocalDate.parse(body.get("nascimento")));
             }
             user = usuarioRepository.save(user);
-            authenticateSession(user.getEmail(), senha, request);
+            authenticateSession(user.getEmail(), senha, request, response);
             return ResponseEntity.status(HttpStatus.CREATED).body(ApiMapper.toUsuarioDto(user));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         }
     }
 
-    private void authenticateSession(String email, String senha, HttpServletRequest request) {
+    private void authenticateSession(String email, String senha, HttpServletRequest request, HttpServletResponse response) {
         Authentication auth = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(email, senha)
         );
@@ -108,6 +113,8 @@ public class ApiAuthController {
         SecurityContextHolder.setContext(context);
         HttpSession session = request.getSession(true);
         session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
+        // Grava o cookie "lembrar de mim": mantém o login mesmo se o servidor reiniciar.
+        rememberMeServices.loginSuccess(request, response, auth);
     }
 
     @PutMapping("/profile")
@@ -141,7 +148,9 @@ public class ApiAuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletRequest request) {
+    public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
+        // Apaga o cookie "lembrar de mim" antes de encerrar a sessão.
+        rememberMeServices.logout(request, response, SecurityContextHolder.getContext().getAuthentication());
         HttpSession session = request.getSession(false);
         if (session != null) {
             session.invalidate();
