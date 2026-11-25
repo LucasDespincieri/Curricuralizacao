@@ -109,6 +109,11 @@ export class AdminService {
     return this.chamar(this.http.put<MembroAdmin>(`/api/membros/${id}`, dados, this.opts));
   }
 
+  /** Pastor define uma senha nova para o membro (quando ele esquece a dele). */
+  redefinirSenhaMembro(id: number, novaSenha: string): Promise<unknown> {
+    return this.chamar(this.http.put(`/api/membros/${id}/senha`, { novaSenha }, this.opts));
+  }
+
   excluirMembro(id: number): Promise<unknown> {
     return this.chamar(this.http.delete(`/api/membros/${id}`, this.opts));
   }

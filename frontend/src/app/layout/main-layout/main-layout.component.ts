@@ -103,7 +103,7 @@ import { AuthService } from '../../services/auth.service';
         </main>
 
         <!-- Coluna Direita (Widgets Contextuais ~300px, oculta no Leitor Focado e em telas menores) -->
-        @if (!isReaderMode()) {
+        @if (!isReaderMode() && !isAdmin()) {
           <aside class="hidden w-[320px] shrink-0 px-6 py-6 xl:block">
             <div class="sticky top-6">
               <app-right-widgets />
@@ -125,7 +125,9 @@ export class MainLayoutComponent {
   private readonly currentUrl = signal(this.router.url);
 
   readonly isReaderMode = computed(() => this.currentUrl().includes('/biblioteca/ler/'));
-  readonly isWideView = computed(() => this.isReaderMode());
+  readonly isAdmin = computed(() => this.currentUrl().startsWith('/admin'));
+  // Leitor e Administração usam a largura toda (as tabelas do Pastor não cabem em 680 px).
+  readonly isWideView = computed(() => this.isReaderMode() || this.isAdmin());
 
   constructor() {
     this.router.events

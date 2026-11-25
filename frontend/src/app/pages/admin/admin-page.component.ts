@@ -4,16 +4,15 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   LucideChartBar,
-  LucideCheck,
   LucideMapPin,
   LucidePencil,
   LucidePlus,
+  LucideRefreshCw,
   LucideSearch,
   LucideShieldCheck,
   LucideTrash2,
   LucideUserPlus,
   LucideUsers,
-  LucideX,
 } from '@lucide/angular';
 import { AuthService } from '../../services/auth.service';
 import {
@@ -43,15 +42,14 @@ type Aba = 'relatorios' | 'cidades' | 'membros';
     LucideMapPin,
     LucideSearch,
     LucidePlus,
+    LucideRefreshCw,
     LucidePencil,
     LucideTrash2,
-    LucideCheck,
-    LucideX,
     LucideUsers,
     LucideUserPlus,
   ],
   template: `
-    <div class="px-6 py-6">
+    <div class="px-4 py-6 sm:px-6">
       <header class="border-b border-slate-200 pb-5">
         <p class="flex items-center gap-1.5 text-[11px] font-semibold tracking-widest text-slate-400 uppercase">
           <svg lucideShieldCheck [size]="13"></svg>
@@ -59,7 +57,8 @@ type Aba = 'relatorios' | 'cidades' | 'membros';
         </p>
         <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900">Administração</h1>
 
-        <div class="mt-4 flex gap-8">
+        <div class="mt-4 flex items-end justify-between gap-3">
+        <div class="flex gap-4 sm:gap-8">
           @for (item of abas; track item.id) {
             <button
               type="button"
@@ -81,7 +80,33 @@ type Aba = 'relatorios' | 'cidades' | 'membros';
             </button>
           }
         </div>
+        <button
+          type="button"
+          (click)="atualizarAba()"
+          [disabled]="atualizando()"
+          title="Buscar de novo os dados desta aba"
+          aria-label="Atualizar"
+          class="mb-2 inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+        >
+          <svg lucideRefreshCw [size]="13" [class.animate-spin]="atualizando()"></svg>
+          <span class="hidden sm:inline">Atualizar</span>
+        </button>
+        </div>
       </header>
+
+      @if (aba() !== 'relatorios' && mensagem(); as m) {
+        <p
+          class="mt-5 rounded-xl border px-4 py-2.5 text-xs font-medium"
+          [class.border-rose-200]="m.tipo === 'erro'"
+          [class.bg-rose-50]="m.tipo === 'erro'"
+          [class.text-rose-700]="m.tipo === 'erro'"
+          [class.border-emerald-200]="m.tipo === 'ok'"
+          [class.bg-emerald-50]="m.tipo === 'ok'"
+          [class.text-emerald-700]="m.tipo === 'ok'"
+        >
+          {{ m.texto }}
+        </p>
+      }
 
       <!-- ===================== RELATÓRIOS ===================== -->
       @if (aba() === 'relatorios') {
@@ -218,59 +243,57 @@ type Aba = 'relatorios' | 'cidades' | 'membros';
       <!-- ===================== CIDADES ===================== -->
       @if (aba() === 'cidades') {
         <div class="mt-6 space-y-5">
-          <!-- Adicionar -->
+          <!-- Formulário único: adicionar ou editar -->
           <form
-            (ngSubmit)="adicionarCidade()"
-            class="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4"
+            id="form-cidade"
+            (ngSubmit)="salvarCidade()"
+            class="scroll-mt-6 rounded-2xl border bg-white p-4"
+            [class.border-slate-200]="!cidadeEditando()"
+            [class.border-slate-800]="cidadeEditando()"
           >
-            <div class="min-w-48 flex-1">
-              <label for="nova-cidade" class="mb-1 block text-xs font-semibold text-slate-600">Nova cidade</label>
-              <input
-                id="nova-cidade"
-                name="novaCidade"
-                type="text"
-                maxlength="50"
-                [(ngModel)]="novaNome"
-                placeholder="Ex.: Assis"
-                class="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-slate-400 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label for="nova-uf" class="mb-1 block text-xs font-semibold text-slate-600">UF</label>
-              <select
-                id="nova-uf"
-                name="novaUf"
-                [(ngModel)]="novaUf"
-                class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-slate-400 focus:outline-none"
-              >
-                @for (uf of ufs; track uf) {
-                  <option [value]="uf">{{ uf }}</option>
-                }
-              </select>
-            </div>
-            <button
-              type="submit"
-              [disabled]="salvando() || !novaNome.trim()"
-              class="inline-flex items-center gap-1.5 rounded-xl bg-slate-800 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-900 disabled:opacity-40"
-            >
-              <svg lucidePlus [size]="14"></svg>
-              <span>Adicionar</span>
-            </button>
-          </form>
-
-          @if (mensagem(); as m) {
-            <p
-              class="rounded-xl border px-4 py-2.5 text-xs font-medium"
-              [class.border-rose-200]="m.tipo === 'erro'"
-              [class.bg-rose-50]="m.tipo === 'erro'"
-              [class.text-rose-700]="m.tipo === 'erro'"
-              [class.border-emerald-200]="m.tipo === 'ok'"
-              [class.bg-emerald-50]="m.tipo === 'ok'"
-              [class.text-emerald-700]="m.tipo === 'ok'"
-            >
-              {{ m.texto }}
+            <p class="mb-3 flex items-center gap-1.5 text-xs font-bold text-slate-900">
+              @if (cidadeEditando(); as c) {
+                <svg lucidePencil [size]="14"></svg>
+                <span>Editando {{ c.nome }}/{{ c.uf }}</span>
+              } @else {
+                <svg lucidePlus [size]="14"></svg>
+                <span>Nova cidade</span>
+              }
             </p>
-          }
+            <div class="flex flex-wrap items-end gap-3">
+              <div class="min-w-40 flex-1">
+                <label for="cidade-nome" class="mb-1 block text-xs font-semibold text-slate-600">Cidade *</label>
+                <input id="cidade-nome" name="cidadeNome" type="text" maxlength="50" [(ngModel)]="formCidade.nome" placeholder="Ex.: Assis"
+                  class="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-slate-400 focus:outline-none" />
+              </div>
+              <div>
+                <label for="cidade-uf" class="mb-1 block text-xs font-semibold text-slate-600">UF</label>
+                <select id="cidade-uf" name="cidadeUf" [(ngModel)]="formCidade.uf"
+                  class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-slate-400 focus:outline-none">
+                  @for (uf of ufs; track uf) {
+                    <option [value]="uf">{{ uf }}</option>
+                  }
+                </select>
+              </div>
+              <div class="flex gap-2">
+                <button type="submit" [disabled]="salvando() || !formCidade.nome.trim()"
+                  class="inline-flex items-center gap-1.5 rounded-xl bg-slate-800 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-900 disabled:opacity-40">
+                  @if (cidadeEditando()) {
+                    <span>Salvar alterações</span>
+                  } @else {
+                    <svg lucidePlus [size]="14"></svg>
+                    <span>Adicionar</span>
+                  }
+                </button>
+                @if (cidadeEditando()) {
+                  <button type="button" (click)="cancelarCidade()"
+                    class="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">
+                    Cancelar
+                  </button>
+                }
+              </div>
+            </div>
+          </form>
 
           <!-- Filtro + lista -->
           <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -282,149 +305,99 @@ type Aba = 'relatorios' | 'cidades' | 'membros';
               <label class="relative block w-full sm:w-64">
                 <span class="sr-only">Buscar cidade</span>
                 <svg lucideSearch [size]="14" class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-slate-400"></svg>
-                <input
-                  type="search"
-                  [ngModel]="busca()"
-                  (ngModelChange)="aoBuscar($event)"
-                  placeholder="Buscar pelo nome..."
-                  class="w-full rounded-xl border border-slate-200 py-2 pr-3 pl-8 text-xs focus:border-slate-400 focus:outline-none"
-                />
+                <input type="search" [ngModel]="busca()" (ngModelChange)="aoBuscar($event)" placeholder="Buscar pelo nome..."
+                  class="w-full rounded-xl border border-slate-200 py-2 pr-3 pl-8 text-xs focus:border-slate-400 focus:outline-none" />
               </label>
             </div>
-
-            <div class="overflow-x-auto">
-              <table class="w-full text-left text-xs">
-                <thead class="bg-slate-50 text-[11px] tracking-wide text-slate-500 uppercase">
-                  <tr>
-                    <th class="px-5 py-2.5 font-semibold">Cidade</th>
-                    <th class="px-3 py-2.5 font-semibold">UF</th>
-                    <th class="px-3 py-2.5 text-right font-semibold">Membros</th>
-                    <th class="px-5 py-2.5 text-right font-semibold">Ações</th>
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-[11px] tracking-wide text-slate-500 uppercase">
+                <tr>
+                  <th class="px-5 py-2.5 font-semibold">Cidade</th>
+                  <th class="px-3 py-2.5 font-semibold">UF</th>
+                  <th class="px-3 py-2.5 text-right font-semibold">Membros</th>
+                  <th class="w-24 px-5 py-2.5 text-right font-semibold">Ações</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                @for (c of cidades(); track c.id) {
+                  <tr [class.bg-slate-50]="cidadeEditando()?.id === c.id">
+                    <td class="px-5 py-2.5 font-medium text-slate-900">{{ c.nome }}</td>
+                    <td class="px-3 py-2.5 text-slate-600">{{ c.uf || '—' }}</td>
+                    <td class="px-3 py-2.5 text-right tabular-nums">{{ c.membros }}</td>
+                    <td class="px-5 py-2.5 text-right whitespace-nowrap">
+                      <button type="button" (click)="editarCidade(c)" [attr.aria-label]="'Editar ' + c.nome" title="Editar"
+                        class="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900">
+                        <svg lucidePencil [size]="14"></svg>
+                      </button>
+                      <button type="button" (click)="excluir(c)" [disabled]="c.membros > 0 || salvando()" [attr.aria-label]="'Excluir ' + c.nome"
+                        [title]="c.membros > 0 ? 'Há membros morando nesta cidade' : 'Excluir'"
+                        class="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400">
+                        <svg lucideTrash2 [size]="14"></svg>
+                      </button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                  @for (c of cidades(); track c.id) {
-                    <tr>
-                      @if (editandoId() === c.id) {
-                        <td class="px-5 py-2">
-                          <input
-                            type="text"
-                            maxlength="50"
-                            [(ngModel)]="editNome"
-                            aria-label="Nome da cidade"
-                            class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-slate-500 focus:outline-none"
-                          />
-                        </td>
-                        <td class="px-3 py-2">
-                          <select
-                            [(ngModel)]="editUf"
-                            aria-label="UF"
-                            class="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs focus:outline-none"
-                          >
-                            @for (uf of ufs; track uf) {
-                              <option [value]="uf">{{ uf }}</option>
-                            }
-                          </select>
-                        </td>
-                        <td class="px-3 py-2 text-right tabular-nums">{{ c.membros }}</td>
-                        <td class="px-5 py-2 text-right whitespace-nowrap">
-                          <button
-                            type="button"
-                            (click)="salvarEdicao(c)"
-                            [disabled]="salvando()"
-                            aria-label="Salvar"
-                            title="Salvar"
-                            class="rounded-lg p-1.5 text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-40"
-                          >
-                            <svg lucideCheck [size]="15"></svg>
-                          </button>
-                          <button
-                            type="button"
-                            (click)="editandoId.set(null)"
-                            aria-label="Cancelar"
-                            title="Cancelar"
-                            class="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100"
-                          >
-                            <svg lucideX [size]="15"></svg>
-                          </button>
-                        </td>
+                } @empty {
+                  <tr>
+                    <td colspan="4" class="px-5 py-6 text-center text-slate-500">
+                      @if (carregandoCidades()) {
+                        Carregando cidades...
+                      } @else if (busca().trim()) {
+                        Nenhuma cidade encontrada para "{{ busca().trim() }}".
                       } @else {
-                        <td class="px-5 py-2.5 font-medium text-slate-900">{{ c.nome }}</td>
-                        <td class="px-3 py-2.5 text-slate-600">{{ c.uf || '—' }}</td>
-                        <td class="px-3 py-2.5 text-right tabular-nums">{{ c.membros }}</td>
-                        <td class="px-5 py-2.5 text-right whitespace-nowrap">
-                          <button
-                            type="button"
-                            (click)="iniciarEdicao(c)"
-                            aria-label="Editar {{ c.nome }}"
-                            title="Editar"
-                            class="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-                          >
-                            <svg lucidePencil [size]="14"></svg>
-                          </button>
-                          <button
-                            type="button"
-                            (click)="excluir(c)"
-                            [disabled]="c.membros > 0 || salvando()"
-                            aria-label="Excluir {{ c.nome }}"
-                            [title]="c.membros > 0 ? 'Há membros morando nesta cidade' : 'Excluir'"
-                            class="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
-                          >
-                            <svg lucideTrash2 [size]="14"></svg>
-                          </button>
-                        </td>
+                        Nenhuma cidade cadastrada ainda.
                       }
-                    </tr>
-                  } @empty {
-                    <tr>
-                      <td colspan="4" class="px-5 py-6 text-center text-slate-500">
-                        @if (carregandoCidades()) {
-                          Carregando cidades...
-                        } @else if (busca().trim()) {
-                          Nenhuma cidade encontrada para "{{ busca().trim() }}".
-                        } @else {
-                          Nenhuma cidade cadastrada ainda.
-                        }
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </section>
         </div>
       }
+
       <!-- ===================== MEMBROS ===================== -->
       @if (aba() === 'membros') {
         <div class="mt-6 space-y-5">
-          <!-- Adicionar membro -->
+          <!-- Formulário único: adicionar ou editar (inclui a senha nova) -->
           <form
-            (ngSubmit)="adicionarMembro()"
-            class="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-3"
+            id="form-membro"
+            (ngSubmit)="salvarMembro()"
+            class="grid scroll-mt-6 gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-2 lg:grid-cols-3"
+            [class.border-slate-200]="!membroEditando()"
+            [class.border-slate-800]="membroEditando()"
           >
             <p class="flex items-center gap-1.5 text-xs font-bold text-slate-900 sm:col-span-2 lg:col-span-3">
-              <svg lucideUserPlus [size]="14"></svg>
-              <span>Novo membro</span>
+              @if (membroEditando(); as m) {
+                <svg lucidePencil [size]="14"></svg>
+                <span>Editando {{ m.nome }}</span>
+              } @else {
+                <svg lucideUserPlus [size]="14"></svg>
+                <span>Novo membro</span>
+              }
             </p>
             <div>
               <label for="m-nome" class="mb-1 block text-xs font-semibold text-slate-600">Nome *</label>
-              <input id="m-nome" name="mNome" type="text" maxlength="50" [(ngModel)]="novo.nome"
+              <input id="m-nome" name="mNome" type="text" maxlength="50" [(ngModel)]="form.nome"
                 class="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-slate-400 focus:outline-none" />
             </div>
             <div>
               <label for="m-email" class="mb-1 block text-xs font-semibold text-slate-600">E-mail *</label>
-              <input id="m-email" name="mEmail" type="email" maxlength="150" [(ngModel)]="novo.email"
-                class="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-slate-400 focus:outline-none" />
+              <input id="m-email" name="mEmail" type="email" maxlength="150" [(ngModel)]="form.email" [disabled]="!!membroEditando()"
+                [title]="membroEditando() ? 'O e-mail é o login e não pode ser alterado' : ''"
+                class="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-slate-400 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500" />
             </div>
             <div>
-              <label for="m-senha" class="mb-1 block text-xs font-semibold text-slate-600">Senha inicial * (mín. 6)</label>
-              <input id="m-senha" name="mSenha" type="password" autocomplete="new-password" [(ngModel)]="novo.senha"
+              <label for="m-senha" class="mb-1 block text-xs font-semibold text-slate-600">
+                {{ membroEditando() ? 'Nova senha (opcional)' : 'Senha inicial * (mín. 6)' }}
+              </label>
+              <input id="m-senha" name="mSenha" type="text" autocomplete="off" spellcheck="false" [(ngModel)]="form.senha"
+                [placeholder]="membroEditando() ? 'Em branco = mantém a atual' : 'Mínimo de 6 caracteres'"
                 class="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-slate-400 focus:outline-none" />
             </div>
             <div>
               <label for="m-papel" class="mb-1 block text-xs font-semibold text-slate-600">Papel</label>
-              <select id="m-papel" name="mPapel" [(ngModel)]="novo.papel"
-                class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-slate-400 focus:outline-none">
+              <select id="m-papel" name="mPapel" [(ngModel)]="form.papel" [disabled]="!!membroEditando() && membroEditando()?.id === meuId()"
+                class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-slate-400 focus:outline-none disabled:opacity-50">
                 <option value="MEMBRO">Membro</option>
                 <option value="PASTOR">Pastor</option>
               </select>
@@ -432,12 +405,18 @@ type Aba = 'relatorios' | 'cidades' | 'membros';
             <div class="grid grid-cols-3 gap-2">
               <div class="col-span-2">
                 <label for="m-cidade" class="mb-1 block text-xs font-semibold text-slate-600">Cidade</label>
-                <input id="m-cidade" name="mCidade" type="text" maxlength="50" [(ngModel)]="novo.cidade"
+                <input id="m-cidade" name="mCidade" type="text" maxlength="50" list="lista-cidades" autocomplete="off"
+                  [ngModel]="form.cidade" (ngModelChange)="aoDigitarCidade($event)" placeholder="Escolha ou digite"
                   class="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-slate-400 focus:outline-none" />
+                <datalist id="lista-cidades">
+                  @for (c of cidadesSugestao(); track c.id) {
+                    <option [value]="c.nome">{{ c.uf }}</option>
+                  }
+                </datalist>
               </div>
               <div>
                 <label for="m-uf" class="mb-1 block text-xs font-semibold text-slate-600">UF</label>
-                <select id="m-uf" name="mUf" [(ngModel)]="novo.uf"
+                <select id="m-uf" name="mUf" [(ngModel)]="form.uf"
                   class="w-full rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs focus:border-slate-400 focus:outline-none">
                   <option value="">—</option>
                   @for (uf of ufs; track uf) {
@@ -446,28 +425,24 @@ type Aba = 'relatorios' | 'cidades' | 'membros';
                 </select>
               </div>
             </div>
-            <div class="flex items-end">
+            <div class="flex items-end gap-2">
               <button type="submit" [disabled]="salvando()"
-                class="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-slate-800 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-900 disabled:opacity-40">
-                <svg lucidePlus [size]="14"></svg>
-                <span>Adicionar membro</span>
+                class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-slate-800 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-900 disabled:opacity-40">
+                @if (membroEditando()) {
+                  <span>Salvar alterações</span>
+                } @else {
+                  <svg lucidePlus [size]="14"></svg>
+                  <span>Adicionar membro</span>
+                }
               </button>
+              @if (membroEditando()) {
+                <button type="button" (click)="cancelarMembro()"
+                  class="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">
+                  Cancelar
+                </button>
+              }
             </div>
           </form>
-
-          @if (mensagem(); as m) {
-            <p
-              class="rounded-xl border px-4 py-2.5 text-xs font-medium"
-              [class.border-rose-200]="m.tipo === 'erro'"
-              [class.bg-rose-50]="m.tipo === 'erro'"
-              [class.text-rose-700]="m.tipo === 'erro'"
-              [class.border-emerald-200]="m.tipo === 'ok'"
-              [class.bg-emerald-50]="m.tipo === 'ok'"
-              [class.text-emerald-700]="m.tipo === 'ok'"
-            >
-              {{ m.texto }}
-            </p>
-          }
 
           <!-- Filtro + lista -->
           <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -479,120 +454,69 @@ type Aba = 'relatorios' | 'cidades' | 'membros';
               <label class="relative block w-full sm:w-64">
                 <span class="sr-only">Buscar membro</span>
                 <svg lucideSearch [size]="14" class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-slate-400"></svg>
-                <input
-                  type="search"
-                  [ngModel]="buscaMembros()"
-                  (ngModelChange)="aoBuscarMembros($event)"
-                  placeholder="Buscar por nome ou e-mail..."
-                  class="w-full rounded-xl border border-slate-200 py-2 pr-3 pl-8 text-xs focus:border-slate-400 focus:outline-none"
-                />
+                <input type="search" [ngModel]="buscaMembros()" (ngModelChange)="aoBuscarMembros($event)" placeholder="Buscar por nome ou e-mail..."
+                  class="w-full rounded-xl border border-slate-200 py-2 pr-3 pl-8 text-xs focus:border-slate-400 focus:outline-none" />
               </label>
             </div>
-
-            <div class="overflow-x-auto">
-              <table class="w-full text-left text-xs">
-                <thead class="bg-slate-50 text-[11px] tracking-wide text-slate-500 uppercase">
-                  <tr>
-                    <th class="px-5 py-2.5 font-semibold">Nome</th>
-                    <th class="px-3 py-2.5 font-semibold">E-mail</th>
-                    <th class="px-3 py-2.5 font-semibold">Cidade</th>
-                    <th class="px-3 py-2.5 font-semibold">Papel</th>
-                    <th class="px-3 py-2.5 font-semibold">Desde</th>
-                    <th class="px-5 py-2.5 text-right font-semibold">Ações</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                  @for (m of membros(); track m.id) {
-                    <tr>
-                      @if (editandoMembroId() === m.id) {
-                        <td class="px-5 py-2">
-                          <input type="text" maxlength="50" [(ngModel)]="edicao.nome" aria-label="Nome do membro"
-                            class="w-full min-w-32 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-slate-500 focus:outline-none" />
-                        </td>
-                        <td class="px-3 py-2 text-slate-400" title="O e-mail é o login e não pode ser alterado">{{ m.email }}</td>
-                        <td class="px-3 py-2">
-                          <div class="flex gap-1.5">
-                            <input type="text" maxlength="50" [(ngModel)]="edicao.cidade" aria-label="Cidade" placeholder="Cidade"
-                              class="w-28 rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:outline-none" />
-                            <select [(ngModel)]="edicao.uf" aria-label="UF"
-                              class="rounded-lg border border-slate-300 bg-white px-1.5 py-1.5 text-xs focus:outline-none">
-                              <option value="">—</option>
-                              @for (uf of ufs; track uf) {
-                                <option [value]="uf">{{ uf }}</option>
-                              }
-                            </select>
-                          </div>
-                        </td>
-                        <td class="px-3 py-2">
-                          <select [(ngModel)]="edicao.papel" aria-label="Papel" [disabled]="m.id === meuId()"
-                            [title]="m.id === meuId() ? 'Você não pode tirar o seu próprio papel de Pastor' : ''"
-                            class="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs focus:outline-none disabled:opacity-50">
-                            <option value="MEMBRO">Membro</option>
-                            <option value="PASTOR">Pastor</option>
-                          </select>
-                        </td>
-                        <td class="px-3 py-2 text-slate-500">{{ formatarData(m.membroDesde) }}</td>
-                        <td class="px-5 py-2 text-right whitespace-nowrap">
-                          <button type="button" (click)="salvarMembro(m)" [disabled]="salvando()" aria-label="Salvar" title="Salvar"
-                            class="rounded-lg p-1.5 text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-40">
-                            <svg lucideCheck [size]="15"></svg>
-                          </button>
-                          <button type="button" (click)="editandoMembroId.set(null)" aria-label="Cancelar" title="Cancelar"
-                            class="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100">
-                            <svg lucideX [size]="15"></svg>
-                          </button>
-                        </td>
-                      } @else {
-                        <td class="px-5 py-2.5 font-medium text-slate-900">
-                          {{ m.nome }}
-                          @if (m.id === meuId()) {
-                            <span class="ml-1 text-[10px] font-medium text-slate-400">(você)</span>
-                          }
-                        </td>
-                        <td class="px-3 py-2.5 text-slate-500">{{ m.email }}</td>
-                        <td class="px-3 py-2.5 text-slate-600">{{ m.cidade ? m.cidade + '/' + m.uf : '—' }}</td>
-                        <td class="px-3 py-2.5">
-                          <span
-                            class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                            [class.bg-slate-800]="m.papel === 'PASTOR'"
-                            [class.text-white]="m.papel === 'PASTOR'"
-                            [class.bg-slate-100]="m.papel !== 'PASTOR'"
-                            [class.text-slate-600]="m.papel !== 'PASTOR'"
-                          >
-                            {{ m.papel === 'PASTOR' ? 'Pastor' : 'Membro' }}
-                          </span>
-                        </td>
-                        <td class="px-3 py-2.5 text-slate-500" [title]="m.membroDesde ? '' : 'Conta criada antes de o site registrar a data de cadastro'">{{ formatarData(m.membroDesde) }}</td>
-                        <td class="px-5 py-2.5 text-right whitespace-nowrap">
-                          <button type="button" (click)="iniciarEdicaoMembro(m)" [attr.aria-label]="'Editar ' + m.nome" title="Editar"
-                            class="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900">
-                            <svg lucidePencil [size]="14"></svg>
-                          </button>
-                          <button type="button" (click)="excluirMembro(m)" [disabled]="m.id === meuId() || salvando()"
-                            [attr.aria-label]="'Excluir ' + m.nome"
-                            [title]="m.id === meuId() ? 'Você não pode excluir a sua própria conta' : 'Excluir'"
-                            class="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400">
-                            <svg lucideTrash2 [size]="14"></svg>
-                          </button>
-                        </td>
-                      }
-                    </tr>
-                  } @empty {
-                    <tr>
-                      <td colspan="6" class="px-5 py-6 text-center text-slate-500">
-                        @if (carregandoMembros()) {
-                          Carregando membros...
-                        } @else if (buscaMembros().trim()) {
-                          Nenhum membro encontrado para "{{ buscaMembros().trim() }}".
-                        } @else {
-                          Nenhum membro cadastrado.
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-[11px] tracking-wide text-slate-500 uppercase">
+                <tr>
+                  <th class="px-5 py-2.5 font-semibold">Membro</th>
+                  <th class="hidden px-3 py-2.5 font-semibold sm:table-cell">Cidade</th>
+                  <th class="px-3 py-2.5 font-semibold">Papel</th>
+                  <th class="hidden px-3 py-2.5 font-semibold md:table-cell">Desde</th>
+                  <th class="w-24 px-5 py-2.5 text-right font-semibold">Ações</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                @for (m of membros(); track m.id) {
+                  <tr [class.bg-slate-50]="membroEditando()?.id === m.id">
+                    <td class="px-5 py-2.5">
+                      <p class="font-medium text-slate-900">
+                        {{ m.nome }}
+                        @if (m.id === meuId()) {
+                          <span class="ml-1 text-[10px] font-medium text-slate-400">(você)</span>
                         }
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
+                      </p>
+                      <p class="mt-0.5 break-all text-[11px] text-slate-500">{{ m.email }}</p>
+                    </td>
+                    <td class="hidden px-3 py-2.5 text-slate-600 sm:table-cell">{{ m.cidade ? m.cidade + '/' + m.uf : '—' }}</td>
+                    <td class="px-3 py-2.5">
+                      <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                        [class.bg-slate-800]="m.papel === 'PASTOR'" [class.text-white]="m.papel === 'PASTOR'"
+                        [class.bg-slate-100]="m.papel !== 'PASTOR'" [class.text-slate-600]="m.papel !== 'PASTOR'">
+                        {{ m.papel === 'PASTOR' ? 'Pastor' : 'Membro' }}
+                      </span>
+                    </td>
+                    <td class="hidden px-3 py-2.5 text-slate-500 md:table-cell"
+                      [title]="m.membroDesde ? '' : 'Conta criada antes de o site registrar a data de cadastro'">{{ formatarData(m.membroDesde) }}</td>
+                    <td class="px-5 py-2.5 text-right whitespace-nowrap">
+                      <button type="button" (click)="editarMembro(m)" [attr.aria-label]="'Editar ' + m.nome" title="Editar (dados e senha)"
+                        class="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900">
+                        <svg lucidePencil [size]="14"></svg>
+                      </button>
+                      <button type="button" (click)="excluirMembro(m)" [disabled]="m.id === meuId() || salvando()" [attr.aria-label]="'Excluir ' + m.nome"
+                        [title]="m.id === meuId() ? 'Você não pode excluir a sua própria conta' : 'Excluir'"
+                        class="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400">
+                        <svg lucideTrash2 [size]="14"></svg>
+                      </button>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" class="px-5 py-6 text-center text-slate-500">
+                      @if (carregandoMembros()) {
+                        Carregando membros...
+                      } @else if (buscaMembros().trim()) {
+                        Nenhum membro encontrado para "{{ buscaMembros().trim() }}".
+                      } @else {
+                        Nenhum membro cadastrado.
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </section>
         </div>
       }
@@ -624,30 +548,44 @@ export class AdminPageComponent implements OnInit {
   readonly cidades = signal<CidadeAdmin[]>([]);
   readonly carregandoCidades = signal(false);
   readonly busca = signal('');
-  readonly editandoId = signal<number | null>(null);
+  readonly cidadeEditando = signal<CidadeAdmin | null>(null);
   readonly salvando = signal(false);
   readonly mensagem = signal<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
-  novaNome = '';
-  novaUf = 'SP';
-  editNome = '';
-  editUf = 'SP';
+  formCidade = { nome: '', uf: 'SP' };
   private buscaTimer: ReturnType<typeof setTimeout> | undefined;
-  private cidadesCarregadas = false;
+
+  /** Algum carregamento em andamento (gira o ícone do botão Atualizar). */
+  readonly atualizando = computed(() => this.carregandoRelatorios() || this.carregandoCidades() || this.carregandoMembros());
 
   ngOnInit(): void {
     // ?aba=cidades abre direto no cadastro de cidades (e o botão Voltar do navegador funciona entre abas).
+    // Toda vez que uma aba é aberta, os dados dela são buscados de novo (sem precisar de F5).
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       const pedida = params.get('aba');
       const aba: Aba = pedida === 'cidades' || pedida === 'membros' ? pedida : 'relatorios';
       this.aba.set(aba);
-      if (aba === 'membros' && !this.membrosCarregados) this.carregarMembros();
-      if (aba === 'relatorios' && !this.relatorios() && !this.carregandoRelatorios()) this.carregarRelatorios();
-      if (aba === 'cidades' && !this.cidadesCarregadas) this.carregarCidades();
+      this.mensagem.set(null);
+      this.cancelarCidade();
+      this.cancelarMembro();
+      this.atualizarAba();
     });
   }
 
   trocarAba(aba: Aba): void {
     this.router.navigate([], { queryParams: { aba: aba === 'relatorios' ? null : aba }, queryParamsHandling: 'merge' });
+  }
+
+  /** Botão "Atualizar": busca de novo os dados da aba aberta. */
+  atualizarAba(): void {
+    const aba = this.aba();
+    if (aba === 'relatorios') {
+      if (!this.carregandoRelatorios()) this.carregarRelatorios();
+    } else if (aba === 'cidades') {
+      this.carregarCidades();
+    } else {
+      this.carregarMembros();
+      this.carregarSugestoesCidades();
+    }
   }
 
   async carregarRelatorios(): Promise<void> {
@@ -680,7 +618,6 @@ export class AdminPageComponent implements OnInit {
     this.carregandoCidades.set(true);
     try {
       this.cidades.set(await this.admin.listarCidades(this.busca()));
-      this.cidadesCarregadas = true;
     } catch (e) {
       this.mostrar('erro', (e as Error).message);
     } finally {
@@ -688,30 +625,32 @@ export class AdminPageComponent implements OnInit {
     }
   }
 
-  async adicionarCidade(): Promise<void> {
-    const nome = this.novaNome.trim();
-    if (!nome || this.salvando()) return;
-    await this.executar(async () => {
-      const criada = await this.admin.criarCidade(nome, this.novaUf);
-      this.novaNome = '';
-      await this.carregarCidades();
-      this.mostrar('ok', `Cidade ${criada.nome}/${criada.uf} cadastrada.`);
-    });
-  }
-
-  iniciarEdicao(c: CidadeAdmin): void {
-    this.editandoId.set(c.id);
-    this.editNome = c.nome;
-    this.editUf = c.uf || 'SP';
+  /** O lápis da tabela leva a cidade para o formulário do topo. */
+  editarCidade(c: CidadeAdmin): void {
+    this.cidadeEditando.set(c);
+    this.formCidade = { nome: c.nome, uf: c.uf || 'SP' };
     this.mensagem.set(null);
+    rolarAte('form-cidade', 'cidade-nome');
   }
 
-  async salvarEdicao(c: CidadeAdmin): Promise<void> {
+  cancelarCidade(): void {
+    this.cidadeEditando.set(null);
+    this.formCidade = { nome: '', uf: this.formCidade?.uf || 'SP' };
+  }
+
+  /** Adiciona (formulário vazio) ou salva a edição (cidade escolhida no lápis). */
+  async salvarCidade(): Promise<void> {
+    const nome = this.formCidade.nome.trim();
+    if (!nome || this.salvando()) return;
+    const editando = this.cidadeEditando();
     await this.executar(async () => {
-      const atualizada = await this.admin.atualizarCidade(c.id, this.editNome.trim(), this.editUf);
-      this.cidades.update((lista) => lista.map((x) => (x.id === c.id ? atualizada : x)));
-      this.editandoId.set(null);
-      this.mostrar('ok', `Cidade atualizada para ${atualizada.nome}/${atualizada.uf}.`);
+      const c = editando
+        ? await this.admin.atualizarCidade(editando.id, nome, this.formCidade.uf)
+        : await this.admin.criarCidade(nome, this.formCidade.uf);
+      this.cidadeEditando.set(null);
+      this.formCidade = { nome: '', uf: c.uf || 'SP' };
+      await this.carregarCidades();
+      this.mostrar('ok', editando ? `Cidade atualizada para ${c.nome}/${c.uf}.` : `Cidade ${c.nome}/${c.uf} cadastrada.`);
     });
   }
 
@@ -719,7 +658,8 @@ export class AdminPageComponent implements OnInit {
     if (!confirm(`Excluir a cidade ${c.nome}/${c.uf}?`)) return;
     await this.executar(async () => {
       await this.admin.excluirCidade(c.id);
-      this.cidades.update((lista) => lista.filter((x) => x.id !== c.id));
+      if (this.cidadeEditando()?.id === c.id) this.cancelarCidade();
+      await this.carregarCidades();
       this.mostrar('ok', `Cidade ${c.nome} excluída.`);
     });
   }
@@ -729,11 +669,11 @@ export class AdminPageComponent implements OnInit {
   readonly membros = signal<MembroAdmin[]>([]);
   readonly carregandoMembros = signal(false);
   readonly buscaMembros = signal('');
-  readonly editandoMembroId = signal<number | null>(null);
+  readonly membroEditando = signal<MembroAdmin | null>(null);
+  /** Cidades já cadastradas, sugeridas no campo Cidade do formulário. */
+  readonly cidadesSugestao = signal<CidadeAdmin[]>([]);
   readonly meuId = computed(() => this.auth.currentUser()?.idUsuario ?? null);
-  novo = membroVazio();
-  edicao = { nome: '', papel: 'MEMBRO' as 'PASTOR' | 'MEMBRO', cidade: '', uf: '' };
-  private membrosCarregados = false;
+  form = membroVazio();
   private buscaMembrosTimer: ReturnType<typeof setTimeout> | undefined;
 
   aoBuscarMembros(termo: string): void {
@@ -746,7 +686,6 @@ export class AdminPageComponent implements OnInit {
     this.carregandoMembros.set(true);
     try {
       this.membros.set(await this.admin.listarMembros(this.buscaMembros()));
-      this.membrosCarregados = true;
     } catch (e) {
       this.mostrar('erro', (e as Error).message);
     } finally {
@@ -754,38 +693,66 @@ export class AdminPageComponent implements OnInit {
     }
   }
 
-  async adicionarMembro(): Promise<void> {
-    if (this.salvando()) return;
-    const erro = validarMembro(this.novo.nome, this.novo.cidade, this.novo.uf, this.novo.email, this.novo.senha);
-    if (erro) {
-      this.mostrar('erro', erro);
-      return;
+  async carregarSugestoesCidades(): Promise<void> {
+    try {
+      this.cidadesSugestao.set(await this.admin.listarCidades(''));
+    } catch {
+      // sem sugestões: o campo continua aceitando qualquer cidade digitada
     }
-    await this.executar(async () => {
-      const criado = await this.admin.criarMembro({ ...this.novo, nome: this.novo.nome.trim(), email: this.novo.email.trim() });
-      this.novo = membroVazio();
-      await this.carregarMembros();
-      this.mostrar('ok', `${criado.nome} foi cadastrado(a) como ${criado.papel === 'PASTOR' ? 'Pastor' : 'Membro'}.`);
-    });
   }
 
-  iniciarEdicaoMembro(m: MembroAdmin): void {
-    this.editandoMembroId.set(m.id);
-    this.edicao = { nome: m.nome, papel: m.papel, cidade: m.cidade, uf: m.uf };
+  /** Ao escolher uma cidade já cadastrada, a UF é preenchida sozinha (quando o nome é único). */
+  aoDigitarCidade(nome: string): void {
+    this.form.cidade = nome;
+    const alvo = nome.trim().toLowerCase();
+    const iguais = this.cidadesSugestao().filter((c) => c.nome.toLowerCase() === alvo);
+    if (iguais.length === 1) this.form.uf = iguais[0].uf;
+  }
+
+  /** O lápis da tabela leva o membro para o formulário do topo (dados e senha nova). */
+  editarMembro(m: MembroAdmin): void {
+    this.membroEditando.set(m);
+    this.form = { nome: m.nome, email: m.email, senha: '', papel: m.papel, cidade: m.cidade, uf: m.uf };
     this.mensagem.set(null);
+    rolarAte('form-membro', 'm-nome');
   }
 
-  async salvarMembro(m: MembroAdmin): Promise<void> {
-    const erro = validarMembro(this.edicao.nome, this.edicao.cidade, this.edicao.uf);
+  cancelarMembro(): void {
+    this.membroEditando.set(null);
+    this.form = membroVazio();
+  }
+
+  /**
+   * Adiciona (formulário vazio) ou salva a edição. Na edição, se o Pastor digitar uma senha nova,
+   * ela é gravada e some do formulário logo em seguida.
+   */
+  async salvarMembro(): Promise<void> {
+    if (this.salvando()) return;
+    const editando = this.membroEditando();
+    const senha = this.form.senha;
+    const erro = editando
+      ? validarMembro(this.form.nome, this.form.cidade, this.form.uf, undefined, senha ? senha : undefined)
+      : validarMembro(this.form.nome, this.form.cidade, this.form.uf, this.form.email, senha);
     if (erro) {
       this.mostrar('erro', erro);
       return;
     }
     await this.executar(async () => {
-      const atualizado = await this.admin.atualizarMembro(m.id, { ...this.edicao, nome: this.edicao.nome.trim() });
-      this.membros.update((lista) => lista.map((x) => (x.id === m.id ? atualizado : x)));
-      this.editandoMembroId.set(null);
-      this.mostrar('ok', `Dados de ${atualizado.nome} atualizados.`);
+      const dados = { nome: this.form.nome.trim(), papel: this.form.papel, cidade: this.form.cidade.trim(), uf: this.form.uf };
+      let texto: string;
+      if (editando) {
+        const atualizado = await this.admin.atualizarMembro(editando.id, dados);
+        if (senha) await this.admin.redefinirSenhaMembro(editando.id, senha);
+        texto = senha
+          ? `Dados e senha de ${atualizado.nome} atualizados. Passe a nova senha para a pessoa.`
+          : `Dados de ${atualizado.nome} atualizados.`;
+      } else {
+        const criado = await this.admin.criarMembro({ ...dados, email: this.form.email.trim(), senha });
+        texto = `${criado.nome} foi cadastrado(a) como ${criado.papel === 'PASTOR' ? 'Pastor' : 'Membro'}.`;
+      }
+      this.cancelarMembro();
+      await Promise.all([this.carregarMembros(), this.carregarSugestoesCidades()]);
+      this.mostrar('ok', texto);
     });
   }
 
@@ -797,7 +764,8 @@ export class AdminPageComponent implements OnInit {
     if (!confirm(aviso)) return;
     await this.executar(async () => {
       await this.admin.excluirMembro(m.id);
-      this.membros.update((lista) => lista.filter((x) => x.id !== m.id));
+      if (this.membroEditando()?.id === m.id) this.cancelarMembro();
+      await this.carregarMembros();
       this.mostrar('ok', `A conta de ${m.nome} foi excluída.`);
     });
   }
@@ -847,4 +815,12 @@ function validarMembro(nome: string, cidade: string, uf: string, email?: string,
   if (senha !== undefined && senha.length < 6) return 'A senha inicial deve ter no mínimo 6 caracteres.';
   if (!!cidade.trim() !== !!uf) return 'Preencha cidade e UF juntos (ou deixe os dois em branco).';
   return null;
+}
+
+/** Leva a tela até o formulário e põe o cursor no primeiro campo. */
+function rolarAte(formId: string, campoId: string): void {
+  setTimeout(() => {
+    document.getElementById(formId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    (document.getElementById(campoId) as HTMLInputElement | null)?.focus({ preventScroll: true });
+  });
 }

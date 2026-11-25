@@ -1,6 +1,7 @@
 package com.example.curriruralizacao.repository;
 
 import com.example.curriruralizacao.model.Usuario;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -22,6 +23,9 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Integer> {
     // Query Method derivado para busca por e-mail:
     // SELECT * FROM usuario WHERE email = :email
     // Retorna Optional<Usuario> para tratar com segurança cenários onde o e-mail não for encontrado (evitando NullPointerException).
+    // @EntityGraph: já traz a cidade (e a UF) junto com o usuário. Sem isso, ler a cidade depois que a consulta
+    // terminou (ex.: ao montar a resposta do login ou do /me) dava LazyInitializationException.
+    @EntityGraph(attributePaths = {"cidade"})
     Optional<Usuario> findByEmail(String email); // Usado principalmente no fluxo de login/autenticação.
 
     // Query Method derivado para checagem rápida de existência:

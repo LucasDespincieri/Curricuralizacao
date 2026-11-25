@@ -121,6 +121,15 @@ import { IconeBibliaComponent } from '../../components/marca/icone-biblia.compon
                   placeholder="Mínimo de 6 caracteres"
                   class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
                 />
+                <button type="button" (click)="esqueciSenha.set(!esqueciSenha())"
+                  class="mt-1.5 text-xs font-medium text-slate-500 underline-offset-2 hover:text-slate-800 hover:underline">
+                  Esqueci minha senha
+                </button>
+                @if (esqueciSenha()) {
+                  <p class="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs leading-relaxed text-slate-600">
+                    Fale com o Pastor: ele define uma senha nova para você pela área de Administração.
+                  </p>
+                }
               </div>
 
               <button
@@ -242,6 +251,7 @@ export class AuthPageComponent {
   readonly errorMessage = signal<string | null>(null);
   readonly submitting = signal(false);
 
+  readonly esqueciSenha = signal(false);
   loginEmail = '';
   loginSenha = '';
 

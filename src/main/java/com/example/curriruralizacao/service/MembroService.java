@@ -8,6 +8,7 @@ import com.example.curriruralizacao.model.Post;
 import com.example.curriruralizacao.model.Usuario;
 import com.example.curriruralizacao.repository.LivroRepository;
 import com.example.curriruralizacao.repository.UsuarioRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -30,15 +31,17 @@ public class MembroService {
     private final LivroRepository livroRepository;
     private final LocalizacaoService localizacaoService;
     private final CloudinaryService cloudinaryService;
+    private final PasswordEncoder passwordEncoder;
 
     public MembroService(UsuarioRepository usuarioRepository, UsuarioService usuarioService,
                          LivroRepository livroRepository, LocalizacaoService localizacaoService,
-                         CloudinaryService cloudinaryService) {
+                         CloudinaryService cloudinaryService, PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
         this.usuarioService = usuarioService;
         this.livroRepository = livroRepository;
         this.localizacaoService = localizacaoService;
         this.cloudinaryService = cloudinaryService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     // Read + Formulário de Filtro: todos os membros, ou só os que têm o termo no nome ou no e-mail.
@@ -90,6 +93,19 @@ public class MembroService {
         usuario.setNome(validarNome(form.getNome()));
         usuario.setRole(novoPapel);
         aplicarCidade(usuario, form);
+        return usuarioRepository.save(usuario);
+    }
+
+    // Só o Pastor muda senhas: define uma senha nova para qualquer conta (inclusive a dele), pela Administração.
+    // A troca invalida o "lembrar de mim" daquela conta, porque o cookie é assinado com a senha antiga.
+    @Transactional
+    public Usuario redefinirSenha(Integer id, String novaSenha) {
+        Usuario usuario = usuarioService.buscarPorId(id);
+        String senha = Objects.toString(novaSenha, "");
+        if (senha.length() < 6) {
+            throw new IllegalArgumentException("A nova senha deve ter no mínimo 6 caracteres.");
+        }
+        usuario.setSenha(passwordEncoder.encode(senha));
         return usuarioRepository.save(usuario);
     }
 

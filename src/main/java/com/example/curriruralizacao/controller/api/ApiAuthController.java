@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
@@ -62,12 +63,14 @@ public class ApiAuthController {
 
         try {
             authenticateSession(email, senha, request, response);
-            Usuario user = usuarioService.buscarPorEmail(email);
-            return ResponseEntity.ok(ApiMapper.toUsuarioDto(user));
-        } catch (Exception ex) {
+        } catch (AuthenticationException ex) {
+            // Só e-mail/senha errados viram 401. Qualquer outro erro sobe para o ApiExceptionHandler (500 + log),
+            // em vez de se disfarçar de "senha inválida".
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "E-mail ou senha inválidos."));
         }
+        Usuario user = usuarioService.buscarPorEmail(email);
+        return ResponseEntity.ok(ApiMapper.toUsuarioDto(user));
     }
 
     @PostMapping("/register")

@@ -19,6 +19,7 @@ import java.util.Map;
 //   GET    /api/membros?busca=...  → lista (filtro por nome ou e-mail)
 //   POST   /api/membros            → cadastra { nome, email, senha, papel, cidade, uf }
 //   PUT    /api/membros/{id}       → edita    { nome, papel, cidade, uf }
+//   PUT    /api/membros/{id}/senha → Pastor define uma senha nova { novaSenha } (só o Pastor muda senhas)
 //   DELETE /api/membros/{id}       → exclui a conta e tudo o que é do membro
 @RestController
 @RequestMapping("/api/membros")
@@ -53,6 +54,14 @@ public class ApiMembroController {
         Usuario pastor = pastorLogado(principal);
         if (pastor == null) return negado(principal);
         return ResponseEntity.ok(toDto(membroService.atualizar(id, form, pastor)));
+    }
+
+    @PutMapping("/{id}/senha")
+    public ResponseEntity<?> redefinirSenha(@PathVariable Integer id, @RequestBody Map<String, String> body, Principal principal) {
+        Usuario pastor = pastorLogado(principal);
+        if (pastor == null) return negado(principal);
+        Usuario membro = membroService.redefinirSenha(id, body.get("novaSenha"));
+        return ResponseEntity.ok(Map.of("ok", true, "nome", membro.getNome()));
     }
 
     @DeleteMapping("/{id}")
